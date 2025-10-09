@@ -251,18 +251,13 @@ public class PivotIntakeSubsystem extends SubsystemBase {
             Commands.parallel(
                 // Dump roller wheels RUN (pull coral in) - runs until current spike detected
                 new IntakeCoral(dumpRoller),
-                Commands.run(() -> dumpRoller.PrepareCoral(false)),
 
                 // Pivot wheels REVERSE (push coral out)
-                Commands.runOnce(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_REVERSE_SPEED), this)
-                .andThen(() -> Commands.waitSeconds(2.5))
-                .andThen(() -> setIntakeSpeed(0))
-                
-                // Wait .2s then Pivot to .08
-                // Commands.sequence(
-                //     Commands.waitSeconds(0.2),
-                //     Commands.runOnce(() -> setPivotSetpoint(0.08))
-                // )
+                Commands.sequence(
+                    Commands.runOnce(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_REVERSE_SPEED), this),
+                    Commands.waitSeconds(2.5),
+                    Commands.runOnce(() -> setIntakeSpeed(0), this)
+                )
             ),
             
             // STEP 5: Stop Pivot Wheels and clear coral state
