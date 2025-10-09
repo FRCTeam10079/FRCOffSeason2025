@@ -36,6 +36,9 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     // Position control request for pivot
     private final PositionVoltage pivotPositionControl = new PositionVoltage(0).withSlot(0);
     private final MotionMagicVoltage motionMagic = new MotionMagicVoltage(0).withSlot(0);
+
+    // ensure coralSensor outputs correctly
+    private boolean previousSensorOutput = false;
     
     // Current pivot setpoint
     private double currentSetpoint = PivotIntakeConstants.STOWED_POSITION;
@@ -158,9 +161,13 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     public boolean isCoralDetected() {
         double distance = coralSensor.getDistance().getValueAsDouble();
         if (distance < 0.01) {
-            return false;
+            // basically makes it so if the sensor tweaks out, it just returns the previous value
+            return previousSensorOutput;
         }
-        return distance < PivotIntakeConstants.CORAL_DETECTED_DISTANCE_M;
+        boolean result = distance < PivotIntakeConstants.CORAL_DETECTED_DISTANCE_M;
+
+        previousSensorOutput = result;
+        return result;
     }
     
     // Set whether coral is in the intake (called by commands)
