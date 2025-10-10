@@ -32,11 +32,12 @@ public final class Constants {
         public static final double REEF_SCORING_POSITION = 0.35;   // Reef scoring position
         
         // Motor speeds
-        public static final double INTAKE_SPEED = -0.3;             // Collecting coral
+        public static final double INTAKE_SPEED = -0.225;             // Collecting coral
         public static final double INTAKE_REVERSE_SPEED = 0.3;    // Intake wheels reverse during scoring
         
         // Sensor thresholds
-        public static final double CORAL_DETECTED_DISTANCE_M = 0.05;
+        public static final double CORAL_DETECTED_DISTANCE_M = 0.03;
+        public static final double CORAL_TOO_LOW_DISTANCE = 0.01;
         
         // PID Constants - Reduced kP to slow down response
         // READ THE DOCS ON THE CTRE WEBSITE - PUT IN HERE LATER

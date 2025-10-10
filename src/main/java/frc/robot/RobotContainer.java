@@ -20,16 +20,17 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
-
+import frc.robot.commands.AlignReef;
 import frc.robot.commands.IntakeCoral;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.DumpRollerSubsystem;
 import frc.robot.subsystems.ElevatorSubsystem;
+import frc.robot.subsystems.LimelightSubsystem;
 import frc.robot.subsystems.PivotIntakeSubsystem;
 
 public class RobotContainer {
-    public double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.7; // kSpeedAt12Volts desired top speed
+    public double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.5; // kSpeedAt12Volts desired top speed
     public double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
 
     /* Setting up bindings for necessary control of the swerve drive platform */
@@ -48,6 +49,7 @@ public class RobotContainer {
 
     // Subsystems
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+    public final LimelightSubsystem limelight = new LimelightSubsystem(this);
     public final ElevatorSubsystem elevator = new ElevatorSubsystem();
     public final PivotIntakeSubsystem pivotSub = new PivotIntakeSubsystem();
     public final DumpRollerSubsystem dumpRoller = new DumpRollerSubsystem();
@@ -86,6 +88,7 @@ public class RobotContainer {
         
         // Build auto chooser with PathPlanner
         autoChooser = AutoBuilder.buildAutoChooser("Tests");
+        System.out.println("Have added the paths");
         SmartDashboard.putData("Auto Mode", autoChooser);
 
         // DO NOT CHANGE.
@@ -114,6 +117,10 @@ public class RobotContainer {
         );
 
         joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
+
+        joystick.rightBumper().whileTrue(new AlignReef(this, Constants.ReefPos.RIGHT));
+
+        joystick.leftBumper().whileTrue(new AlignReef(this, Constants.ReefPos.LEFT));
         
         joystick.pov(0).whileTrue(drivetrain.applyRequest(() ->
             forwardStraight.withVelocityX(0.5).withVelocityY(0))

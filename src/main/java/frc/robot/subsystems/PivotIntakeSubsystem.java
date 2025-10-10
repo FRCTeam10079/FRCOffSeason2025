@@ -24,6 +24,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.Constants.PivotIntakeConstants;
 import frc.robot.commands.IntakeCoral;
+import edu.wpi.first.math.MathUtil;
 
 public class PivotIntakeSubsystem extends SubsystemBase {
 
@@ -47,7 +48,7 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     private boolean hasCoralInIntake = false;
     
     public PivotIntakeSubsystem() {
-        configurePivotMotor();
+        configurePivotMotor(PivotIntakeConstants.STOWED_POSITION, PivotIntakeConstants.INTAKE_POSITION);
         configureIntakeMotor();
         
         // // Reset pivot encoder to 0 at startup
@@ -64,7 +65,7 @@ public class PivotIntakeSubsystem extends SubsystemBase {
         pivotMotor.setPosition(0);
     }
     
-    private void configurePivotMotor() {
+    private void configurePivotMotor(double ForwardSoft, double ReserveSoft) {
         TalonFXConfiguration config = new TalonFXConfiguration();
         config.MotorOutput.NeutralMode = NeutralModeValue.Brake;
         config.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
@@ -110,9 +111,9 @@ public class PivotIntakeSubsystem extends SubsystemBase {
         config.CurrentLimits.SupplyCurrentLimitEnable = true;
         
         // Limits to prevent over-rotation
-        config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = PivotIntakeConstants.STOWED_POSITION; // Slightly past intake position
+        config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = ForwardSoft; // Slightly past intake position
         config.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-        config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = PivotIntakeConstants.INTAKE_POSITION; // Slightly past stowed
+        config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = ReserveSoft; // Slightly past stowed
         config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
         
         pivotMotor.getConfigurator().apply(config);
@@ -122,7 +123,7 @@ public class PivotIntakeSubsystem extends SubsystemBase {
         pivotEncoder.getPosition().setUpdateFrequency(100);
         pivotMotor.optimizeBusUtilization();
     }
-    
+
     private void configureIntakeMotor() {
         TalonFXConfiguration config = new TalonFXConfiguration();
         config.MotorOutput.NeutralMode = NeutralModeValue.Brake;
@@ -138,6 +139,14 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     // Set the pivot position setpoint
     public void setPivotSetpoint(double setpoint) {
         currentSetpoint = setpoint;
+        double direction = Math.signum(setpoint - getPivotPosition());
+
+        if (direction > 0) {
+            configurePivotMotor(PivotIntakeConstants.INTAKE_POSITION, setpoint);
+        } else {
+            configurePivotMotor(setpoint, PivotIntakeConstants.STOWED_POSITION);
+        }
+
         // Command the motor to the target position
         pivotMotor.setControl(motionMagic.withPosition(setpoint));
     }
@@ -160,7 +169,7 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     // Check if coral is detected by CanRange sensor
     public boolean isCoralDetected() {
         double distance = coralSensor.getDistance().getValueAsDouble();
-        if (distance < 0.01) {
+        if (distance < PivotIntakeConstants.CORAL_TOO_LOW_DISTANCE) {
             // basically makes it so if the sensor tweaks out, it just returns the previous value
             return previousSensorOutput;
         }
@@ -220,10 +229,10 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     
     /**
      * Complete sequence to collect coral from ground and transfer to dump roller.
-     * Uses current spike detection to determine when coral has been transferred.
+     * Uses TIME-BASED detection (3 seconds) instead of sensors.
      * Sequence:
      * 1. Deploy pivot to intake position
-     * 2. Run intake wheels until coral is detected
+     * 2. Run intake wheels for 3 seconds
      * 3. Wait 0.25s, then stow pivot to home
      * 4. Transfer coral (ALL PARALLEL):
      *    - Pivot wheels REVERSE
@@ -241,7 +250,7 @@ public class PivotIntakeSubsystem extends SubsystemBase {
             Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.INTAKE_POSITION)),
             Commands.waitUntil(this::isPivotAtSetpoint),
             
-            // STEP 2: Run Intake Wheels (runs until coral sensor detects coral)
+            // STEP 2: Run Intake Wheels for 3 seconds (TIME-BASED, NO SENSOR)
             Commands.run(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_SPEED), this)
                 .until(this::isCoralDetected),
             Commands.runOnce(() -> setIntakeSpeed(0), this),
@@ -275,14 +284,14 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     
     /**
      * Simpler version: Just collect coral from ground
-     * Deploys, runs intake until coral detected, then stows
+     * Deploys, runs intake for 3 seconds (TIME-BASED, NO SENSOR), then stows
      */
     public Command collectCoral() {
         return Commands.sequence(
-            Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.INTAKE_POSITION)),
-            Commands.waitUntil(this::isPivotAtSetpoint),
+            //Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.INTAKE_POSITION)),
+            //Commands.waitUntil(this::isPivotAtSetpoint),
             Commands.run(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_SPEED), this)
-                .until(this::isCoralDetected),
+                .withTimeout(3.0),
             Commands.runOnce(() -> setIntakeSpeed(0), this),
             Commands.runOnce(() -> setHasCoralInIntake(true)), // Mark coral as collected
             Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.STOWED_POSITION))
@@ -298,8 +307,16 @@ public class PivotIntakeSubsystem extends SubsystemBase {
         return Commands.sequence(
             // Run both motors simultaneously with current spike detection
             Commands.parallel(
-                new IntakeCoral(dumpRoller), // Automatically stops when current spike detected
-                Commands.run(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_REVERSE_SPEED), this)
+                // Dump roller wheels RUN (pull coral in) - runs until current spike detected
+                new IntakeCoral(dumpRoller),
+
+                // Pivot wheels REVERSE (push coral out)
+                Commands.sequence(
+                    Commands.runOnce(() -> setPivotSetpoint(0.02)),
+                    Commands.runOnce(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_REVERSE_SPEED), this),
+                    Commands.waitSeconds(5),
+                    Commands.runOnce(() -> setIntakeSpeed(0), this)
+                )
             ),
             
             // Stop pivot wheels (dump roller already stopped by IntakeCoral)

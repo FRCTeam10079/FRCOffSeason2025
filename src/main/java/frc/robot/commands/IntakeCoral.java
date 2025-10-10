@@ -28,7 +28,7 @@ public class IntakeCoral extends Command{
     // Current threshold value indicating if coral was intaked
     private static final double HIGH_CURRENT_THRESHOLD = 35;
     // Number of readings needed above threshold to confirm coral was intaked
-    private static final int HIGH_CURRENT_COUNT = 4;
+    private static final int HIGH_CURRENT_COUNT = 20;
 
 
     // CONSTRUCTOR
