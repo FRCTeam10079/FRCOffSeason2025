@@ -20,6 +20,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
+import frc.robot.Constants.ReefPos;
 import frc.robot.commands.AlignReef;
 import frc.robot.commands.IntakeCoral;
 import frc.robot.generated.TunerConstants;
@@ -85,6 +86,11 @@ public class RobotContainer {
         NamedCommands.registerCommand("Keep Coral", dumpRoller.keepCoral()); // Hold/stop dump roller
         NamedCommands.registerCommand("Prepare Coral Out", dumpRoller.PrepareCoral(true)); // Push coral out slightly
         NamedCommands.registerCommand("Prepare Coral In", dumpRoller.PrepareCoral(false)); // Pull coral in slightly
+
+        // Aligns to the Left Reef side
+        NamedCommands.registerCommand("Align Left", new AlignReef(this, ReefPos.LEFT).withTimeout(1.0));
+        // Aligns to the Right Reef side
+        NamedCommands.registerCommand("Align Right", new AlignReef(this, ReefPos.RIGHT).withTimeout(1.0));
         
         // Build auto chooser with PathPlanner
         autoChooser = AutoBuilder.buildAutoChooser("Tests");

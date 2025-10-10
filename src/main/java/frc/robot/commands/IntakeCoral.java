@@ -54,8 +54,8 @@ public class IntakeCoral extends Command{
     // Called every 20ms to perform actions of Command
     @Override
     public void execute(){
-        // Constantly runs the intake
-        dumpRoller.coralMotor.set(0.2);
+        // Runs the intake at high speed to quickly grab coral from pivot intake
+        dumpRoller.coralMotor.set(1);
 
         // Gets current motor draw
         double current = dumpRoller.coralMotor.getStatorCurrent().getValueAsDouble();

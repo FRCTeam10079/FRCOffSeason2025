@@ -26,7 +26,11 @@ import frc.robot.Constants.PivotIntakeConstants;
 import frc.robot.commands.IntakeCoral;
 import edu.wpi.first.math.MathUtil;
 
-public class PivotIntakeSubsystem extends SubsystemBase {
+/**
+ * ALTERNATE VERSION: Dynamic Clamps Approach
+ * This version dynamically adjusts soft limits based on target position
+ */
+public class PivotIntakeSubsystem_DynamicClamps extends SubsystemBase {
 
     // Motors and sensors
     private final TalonFX pivotMotor = new TalonFX(PivotIntakeConstants.PIVOT_MOTOR_ID);
@@ -47,7 +51,7 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     // Track if coral has been collected (set manually after collection)
     private boolean hasCoralInIntake = false;
     
-    public PivotIntakeSubsystem() {
+    public PivotIntakeSubsystem_DynamicClamps() {
         configurePivotMotor(PivotIntakeConstants.STOWED_POSITION, PivotIntakeConstants.INTAKE_POSITION);
         configureIntakeMotor();
         
@@ -62,12 +66,12 @@ public class PivotIntakeSubsystem extends SubsystemBase {
         }
         
         pivotEncoder.setPosition(PivotIntakeConstants.STOWED_POSITION);
-        pivotMotor.setPosition(PivotIntakeConstants.STOWED_POSITION); // Setting this just in case. It's helpful I suppose
+        pivotMotor.setPosition(PivotIntakeConstants.STOWED_POSITION);
         
         // Set initial setpoint to match current position to prevent sudden movement
         currentSetpoint = PivotIntakeConstants.STOWED_POSITION;
         
-        SmartDashboard.putString("Pivot Init Status", "Initialized at STOWED position (0.42)");
+        SmartDashboard.putString("Pivot Init Status", "Initialized at STOWED position (0.42) - DYNAMIC CLAMPS MODE");
     }
 
     /**
@@ -76,7 +80,7 @@ public class PivotIntakeSubsystem extends SubsystemBase {
      * This is for calibration/debugging purposes.
      */
     public void zeroPositionEncoders() {
-        // just tells both the motor and the encoder that they are at pos 0;
+        // Set both encoder and motor to 0 (horizontal extended position)
         pivotEncoder.setPosition(0);
         pivotMotor.setPosition(0);
         currentSetpoint = 0;
@@ -84,35 +88,21 @@ public class PivotIntakeSubsystem extends SubsystemBase {
         SmartDashboard.putString("Pivot Init Status", "Manually zeroed at horizontal (0.0)");
     }
     
-    private void configurePivotMotor(double ForwardSoft, double ReserveSoft) {
+    private void configurePivotMotor(double ForwardSoft, double ReverseSoft) {
         TalonFXConfiguration config = new TalonFXConfiguration();
         config.MotorOutput.NeutralMode = NeutralModeValue.Brake;
         config.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
         
-        // PID Configuration for position control
-        // config.Slot0.kP = PivotIntakeConstants.PIVOT_KP;
-        // //config.Slot0.kI = PivotIntakeConstants.PIVOT_KI;
-        // config.Slot0.kD = PivotIntakeConstants.PIVOT_KD;
-        // //config.Slot0.kA = 0; // ensure they are reset to 0
-        // //config.Slot0.kS = 0; // ensure they are reset to 0
-        // //config.Slot0.kV = 0; // ensure they are reset to 0
-        // config.Slot0.kG = PivotIntakeConstants.PIVOT_KG;  // Gravity compensation
-        // //config.Slot0.kA = PivotIntakeConstants.PIVOT_KA;
         config.Slot0.GravityType = com.ctre.phoenix6.signals.GravityTypeValue.Arm_Cosine; // For pivoting arms
-        
-        // // shrug i hop eit works
-        // config.MotionMagic.MotionMagicCruiseVelocity = 125;
-        // config.MotionMagic.MotionMagicAcceleration = 250;
-        // config.MotionMagic.MotionMagicJerk = 0; // resetting the value
 
         MotionMagicConfigs mm = config.MotionMagic;
-        mm.withMotionMagicCruiseVelocity(RotationsPerSecond.of(0.5)) // 5 (mechanism) rotations per second cruise
+        mm.withMotionMagicCruiseVelocity(RotationsPerSecond.of(0.5)) // 0.5 rotations per second cruise
         .withMotionMagicAcceleration(RotationsPerSecondPerSecond.of(1)) // Take approximately 0.5 seconds to reach max vel
         .withMotionMagicJerk(RotationsPerSecondPerSecond.per(Second).of(0));
 
         Slot0Configs slot0 = config.Slot0;
-        slot0.kS = 0.35; // Add 0.25 V output to overcome static friction
-        slot0.kV = 12 ; // A velocity target of 1 rps results in 0.12 V output
+        slot0.kS = 0.35; // Add 0.35 V output to overcome static friction
+        slot0.kV = 12 ; // A velocity target of 1 rps results in 12 V output
         slot0.kG = 0;    // No gravity
         slot0.kA = 0.01; // An acceleration of 1 rps/s requires 0.01 V output
         slot0.kP = 0.02; // A position error of 0.2 rotations results in 12 V output
@@ -129,10 +119,10 @@ public class PivotIntakeSubsystem extends SubsystemBase {
         config.CurrentLimits.SupplyCurrentLimit = 40;
         config.CurrentLimits.SupplyCurrentLimitEnable = true;
         
-        // Limits to prevent over-rotation
-        config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = ForwardSoft; // Slightly past intake position
+        // DYNAMIC CLAMPS: These will be adjusted based on target position
+        config.SoftwareLimitSwitch.ForwardSoftLimitThreshold = ForwardSoft;
         config.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-        config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = ReserveSoft; // Slightly past stowed
+        config.SoftwareLimitSwitch.ReverseSoftLimitThreshold = ReverseSoft;
         config.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
         
         pivotMotor.getConfigurator().apply(config);
@@ -155,9 +145,20 @@ public class PivotIntakeSubsystem extends SubsystemBase {
         intakeWheelMotor.getConfigurator().apply(config);
     }
     
-    // Set the pivot position setpoint
+    /**
+     * Set the pivot position setpoint with dynamic clamp adjustment
+     * IMPORTANT: Motor can ONLY move to the exact clamp positions!
+     * We must set BOTH clamps to the target position to make it move there.
+     */
     public void setPivotSetpoint(double setpoint) {
         currentSetpoint = setpoint;
+        
+        // IMPORTANT WORKAROUND:
+        // The motor can ONLY go to the clamp positions, not anywhere in between
+        // So we set BOTH forward and reverse clamps to the SAME value (the target)
+        // This forces the motor to go exactly to that position
+        configurePivotMotor(setpoint, setpoint);
+        
         // Command the motor to the target position
         pivotMotor.setControl(motionMagic.withPosition(setpoint));
     }
@@ -199,12 +200,6 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     public boolean hasCoralInIntake() {
         return hasCoralInIntake;
     }
-    
-    // Get the distance reading from CanRange sensor
-    //public double getCoralDistance() {
-        //return coralSensor.getDistance().getValueAsDouble();
-        //return 0d;
-    //}
     
     // COMMAND METHODS
     
@@ -302,8 +297,6 @@ public class PivotIntakeSubsystem extends SubsystemBase {
      */
     public Command collectCoral() {
         return Commands.sequence(
-            //Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.INTAKE_POSITION)),
-            //Commands.waitUntil(this::isPivotAtSetpoint),
             Commands.run(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_SPEED), this)
                 .withTimeout(3.0),
             Commands.runOnce(() -> setIntakeSpeed(0), this),
@@ -353,7 +346,6 @@ public class PivotIntakeSubsystem extends SubsystemBase {
         SmartDashboard.putBoolean("Pivot At Setpoint", isPivotAtSetpoint());
         SmartDashboard.putBoolean("Coral Detected", hasCoralInIntake); // State-based, not real-time sensor
         SmartDashboard.putBoolean("Coral Sensor Active", isCoralDetected()); // Real-time sensor reading
-        //SmartDashboard.putNumber("Coral Distance (mm)", getCoralDistance());
         SmartDashboard.putNumber("Intake Wheel Speed", intakeWheelMotor.get());
         SmartDashboard.putNumber("Pivot Motor Current", pivotMotor.getSupplyCurrent().getValueAsDouble());
         SmartDashboard.putNumber("Pivot Motor Voltage", pivotMotor.getMotorVoltage().getValueAsDouble());

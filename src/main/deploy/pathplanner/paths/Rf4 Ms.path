@@ -1,0 +1,54 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 7.438806818181819,
+        "y": 4.059900568181818
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 7.747250359234098,
+        "y": 4.032041681839741
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 6.1425,
+        "y": 4.059900568181818
+      },
+      "prevControl": {
+        "x": 5.883859508631533,
+        "y": 4.091619841610245
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": "Rf4 Ms"
+    }
+  ],
+  "rotationTargets": [],
+  "constraintZones": [],
+  "pointTowardsZones": [],
+  "eventMarkers": [],
+  "globalConstraints": {
+    "maxVelocity": 4.5,
+    "maxAcceleration": 9.0,
+    "maxAngularVelocity": 540.0,
+    "maxAngularAcceleration": 720.0,
+    "nominalVoltage": 12.0,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": 180.0
+  },
+  "reversed": false,
+  "folder": null,
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": 180.0
+  },
+  "useDefaultConstraints": true
+}

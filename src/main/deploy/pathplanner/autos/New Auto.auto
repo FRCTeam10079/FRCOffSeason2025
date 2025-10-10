@@ -1,0 +1,55 @@
+{
+  "version": "2025.0",
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Rf4 Rs"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Rf4 to lolly3"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "lolly3 to Rf1"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Rf1 to lolly2"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "lolly2 to Rf1"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "Rf1 to lolly1"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "lolly1 to Rf1"
+          }
+        }
+      ]
+    }
+  },
+  "resetOdom": true,
+  "folder": "Right autos",
+  "choreoAuto": false
+}

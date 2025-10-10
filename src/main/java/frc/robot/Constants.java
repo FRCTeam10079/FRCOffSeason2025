@@ -27,12 +27,16 @@ public final class Constants {
         public static final int CORAL_SENSOR_ID = 22;
         
         // Pivot positions (in rotations) - 200° total range
+        // Pivot encoder zeros at horizontal extended position
+        // The robot physically starts at stowed position
+        // Encoder offset is applied in PivotIntakeSubsystem constructor
         public static final double STOWED_POSITION = 0.42;          // Home position
+        public static final double STOWED_POSITION_WITH_CORAL = 0.44; // Slightly above stowed for coral transfer
         public static final double INTAKE_POSITION = 0.0;         // Ground collection
         public static final double REEF_SCORING_POSITION = 0.35;   // Reef scoring position
         
         // Motor speeds
-        public static final double INTAKE_SPEED = -0.225;             // Collecting coral
+        public static final double INTAKE_SPEED = -0.8;             // Collecting coral
         public static final double INTAKE_REVERSE_SPEED = 0.3;    // Intake wheels reverse during scoring
         
         // Sensor thresholds
