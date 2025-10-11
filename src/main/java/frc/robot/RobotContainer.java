@@ -31,7 +31,7 @@ import frc.robot.subsystems.LimelightSubsystem;
 import frc.robot.subsystems.PivotIntakeSubsystem;
 
 public class RobotContainer {
-    public double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.5; // kSpeedAt12Volts desired top speed
+    public double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.2; // kSpeedAt12Volts desired top speed
     public double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
 
     /* Setting up bindings for necessary control of the swerve drive platform */
@@ -201,7 +201,7 @@ public class RobotContainer {
     private Command CoralOuttake(){
         // List of speeds for each elevator level (0-4)
         // Position 0 uses a slower speed (0.1), all other positions use 0.2
-        double[] launchSpeeds = {0.1, 0.1, 0.2, 0.2, 0.2};
+        double[] launchSpeeds = {0.3, 0.3, 0.3, 0.3, 0.3};
         
         // Safety check to prevent array index out of bounds
         int posIndex = Math.min(elevator.pos, launchSpeeds.length - 1);

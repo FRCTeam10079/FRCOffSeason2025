@@ -28,9 +28,10 @@ public class IntakeCoral extends Command{
     // Current threshold value indicating if coral was intaked
     private static final double HIGH_CURRENT_THRESHOLD = 35;
     // Number of readings needed above threshold to confirm coral was intaked
-    private static final int HIGH_CURRENT_COUNT = 20;
+    private static final int HIGH_CURRENT_COUNT = 50;
 
 
+    
     // CONSTRUCTOR
     public IntakeCoral(RobotContainer robotcontainer){          
         this.dumpRoller = robotcontainer.dumpRoller;
@@ -90,6 +91,9 @@ public class IntakeCoral extends Command{
         }
         // Uses Current output to detect Coral
         else{
+            if(timer.get() > 0.67d) {
+                return true;
+            }
             // Only checks after 0.5 second (It spikes when starting)
             if (timer.get() > 0.5) {
                 // The count of high currents detected

@@ -260,33 +260,30 @@ public class PivotIntakeSubsystem extends SubsystemBase {
             Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.INTAKE_POSITION)),
             Commands.waitUntil(this::isPivotAtSetpoint),
             
-            // STEP 2: Run Intake Wheels until coral detected
+            // STEP 2: Run Intake Wheels until coral detected, then keep running for extra time to pull it fully in
             Commands.run(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_SPEED), this)
                 .until(this::isCoralDetected),
+            // Keep running intake for 0.5 seconds after detection to fully pull coral in
+            Commands.run(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_SPEED), this)
+                .withTimeout(0.5),
             Commands.runOnce(() -> setIntakeSpeed(0), this),
             Commands.runOnce(() -> setHasCoralInIntake(true)), // Mark coral as collected
             
             // STEP 2.5: Wait 0.125 seconds
             Commands.waitSeconds(0.125),
             
-            // STEP 3 & 4: Move to transfer position AND start dump roller immediately (DEADLINE)
-            // The pivot movement to 0.44 sets the deadline, dump roller and pivot reverse run in parallel
-            Commands.deadline(
-                // DEADLINE: Wait for pivot to reach transfer position
-                Commands.sequence(
-                    Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.STOWED_POSITION_WITH_CORAL)),
-                    Commands.waitUntil(this::isPivotAtSetpoint)
-                ),
-                
-                // PARALLEL: Dump roller starts immediately as pivot moves
-                Commands.race(
-                    // Dump roller wheels RUN (pull coral in) - runs until current spike detected
-                    new IntakeCoral(dumpRoller),
+            // STEP 3: Go directly to transfer position (0.44)
+            Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.STOWED_POSITION_WITH_CORAL)),
+            Commands.waitUntil(this::isPivotAtSetpoint),
+            
+            // STEP 4: Transfer Coral (RACE - ends when coral detected OR 3 second timeout)
+            Commands.race(
+                // Dump roller wheels RUN (pull coral in) - runs until current spike detected
+                new IntakeCoral(dumpRoller),
 
-                    // Pivot wheels REVERSE (push coral out) - stops when IntakeCoral finishes
-                    Commands.run(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_REVERSE_SPEED), this)
-                        .withTimeout(3.0) // Safety timeout in case current spike never detected
-                )
+                // Pivot wheels REVERSE (push coral out) - stops when IntakeCoral finishes
+                Commands.run(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_REVERSE_SPEED), this)
+                    .withTimeout(3.0) // Safety timeout in case current spike never detected
             ),
             
             // STEP 5: Stop Pivot Wheels (redundant safety), return to normal stowed position, and clear coral state
@@ -302,8 +299,8 @@ public class PivotIntakeSubsystem extends SubsystemBase {
      */
     public Command collectCoral() {
         return Commands.sequence(
-            //Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.INTAKE_POSITION)),
-            //Commands.waitUntil(this::isPivotAtSetpoint),
+            Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.INTAKE_POSITION)),
+            Commands.waitUntil(this::isPivotAtSetpoint),
             Commands.run(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_SPEED), this)
                 .withTimeout(3.0),
             Commands.runOnce(() -> setIntakeSpeed(0), this),

@@ -36,8 +36,8 @@ public final class Constants {
         public static final double REEF_SCORING_POSITION = 0.35;   // Reef scoring position
         
         // Motor speeds
-        public static final double INTAKE_SPEED = -0.8;             // Collecting coral
-        public static final double INTAKE_REVERSE_SPEED = 0.3;    // Intake wheels reverse during scoring
+        public static final double INTAKE_SPEED = -0.3;             // Collecting coral
+        public static final double INTAKE_REVERSE_SPEED = 0.6;    // Intake wheels reverse during scoring
         
         // Sensor thresholds
         public static final double CORAL_DETECTED_DISTANCE_M = 0.03;
