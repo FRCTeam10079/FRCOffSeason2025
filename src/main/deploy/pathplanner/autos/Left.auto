@@ -5,57 +5,51 @@
     "data": {
       "commands": [
         {
-          "type": "wait",
+          "type": "path",
           "data": {
-            "waitTime": 9.0
+            "pathName": "Rf1 Rs"
           }
         },
         {
           "type": "path",
           "data": {
-            "pathName": "Rf4 Ms"
+            "pathName": "Rf1 to lolly1"
           }
         },
         {
-          "type": "named",
+          "type": "path",
           "data": {
-            "name": "Align Right"
+            "pathName": "lolly1 to Rf1"
           }
         },
         {
-          "type": "named",
+          "type": "path",
           "data": {
-            "name": "Raise L4"
+            "pathName": "Rf1 to lolly2"
           }
         },
         {
-          "type": "wait",
+          "type": "path",
           "data": {
-            "waitTime": 2.5
+            "pathName": "lolly2 to Rf1"
           }
         },
         {
-          "type": "named",
+          "type": "path",
           "data": {
-            "name": "Drop Coral"
+            "pathName": "Rf1 to lolly3"
           }
         },
         {
-          "type": "wait",
+          "type": "path",
           "data": {
-            "waitTime": 1.0
-          }
-        },
-        {
-          "type": "named",
-          "data": {
-            "name": "Raise L0"
+            "pathName": "lolly3 to Rf1"
           }
         }
       ]
     }
   },
   "resetOdom": true,
-  "folder": "Middle autos",
+  "folder": "Left autos",
   "choreoAuto": false
 }
