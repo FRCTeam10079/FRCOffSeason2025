@@ -20,6 +20,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
+import frc.robot.Constants.PivotIntakeConstants;
 import frc.robot.Constants.ReefPos;
 import frc.robot.commands.AlignReef;
 import frc.robot.commands.IntakeCoral;
@@ -31,7 +32,7 @@ import frc.robot.subsystems.LimelightSubsystem;
 import frc.robot.subsystems.PivotIntakeSubsystem;
 
 public class RobotContainer {
-    public double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.2; // kSpeedAt12Volts desired top speed
+    public double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.7; // kSpeedAt12Volts desired top speed
     public double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
 
     /* Setting up bindings for necessary control of the swerve drive platform */
@@ -47,6 +48,7 @@ public class RobotContainer {
     // Joysticks
     public final CommandXboxController joystick = new CommandXboxController(0);
     public final CommandXboxController joystick2 = new CommandXboxController(1);
+    public final CommandXboxController joystick3 = new CommandXboxController(2);
 
     // Subsystems
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
@@ -67,6 +69,7 @@ public class RobotContainer {
         NamedCommands.registerCommand("Collect Coral", pivotSub.collectCoral()); // Deploy, intake until detected, stow
         NamedCommands.registerCommand("Collect and Transfer Coral", pivotSub.collectAndTransferCoral(dumpRoller)); // Full auto: collect + transfer to dump
         NamedCommands.registerCommand("Transfer to Dump", pivotSub.transferCoralToDumpRoller(dumpRoller)); // Transfer coral to dump roller only
+        NamedCommands.registerCommand("Score L1/ Eject", pivotSub.collectForL1(dumpRoller));
         
         // INTAKE WHEEL COMMANDS
         NamedCommands.registerCommand("Start Intake Wheels", pivotSub.intakeWheels()); // Run intake wheels forward
@@ -86,6 +89,8 @@ public class RobotContainer {
         NamedCommands.registerCommand("Keep Coral", dumpRoller.keepCoral()); // Hold/stop dump roller
         NamedCommands.registerCommand("Prepare Coral Out", dumpRoller.PrepareCoral(true)); // Push coral out slightly
         NamedCommands.registerCommand("Prepare Coral In", dumpRoller.PrepareCoral(false)); // Pull coral in slightly
+        NamedCommands.registerCommand("SCORE", CoralOuttake());
+
 
         // Aligns to the Left Reef side
         NamedCommands.registerCommand("Align Left", new AlignReef(this, ReefPos.LEFT).withTimeout(1.0));
@@ -172,45 +177,49 @@ public class RobotContainer {
         // PIVOT INTAKE CONTROLS
         // Full auto sequence: collect coral and transfer to dump roller
         joystick2.povUp().onTrue(pivotSub.collectAndTransferCoral(dumpRoller));
+        joystick2.povRight().onTrue(pivotSub.collectForL1(dumpRoller));
+        //joystick2.povRight().onTrue(pivotSub.setIntakeSpeed(PivotIntakeConstants.INTAKE_REVERSE_SPEED));
         
+        // Continually runs Dump Roller until coral detected
+        joystick3.leftTrigger().onTrue(new IntakeCoral(this));
+
+        // JOYSTICK 3 = DEBUG JOYSTICK
         // Just collect coral from ground
-        joystick2.povDown().onTrue(pivotSub.collectCoral());
+        joystick3.povDown().onTrue(pivotSub.collectCoral());
 
         // Sticks coral out when holding Left Dpad
         //joystick2.povLeft().whileTrue(dumpRoller.dropCoral(0.15)).onFalse(dumpRoller.keepCoral().withTimeout(0.1));
 
-        joystick2.povLeft().onTrue(pivotSub.transferCoralToDumpRoller(dumpRoller));
+        joystick3.povLeft().onTrue(pivotSub.transferCoralToDumpRoller(dumpRoller));
 
         // Sticks coral in when holding Right Dpad
-        joystick2.povRight().whileTrue(dumpRoller.dropCoral(-0.15)).onFalse(dumpRoller.keepCoral().withTimeout(0.1));
+        joystick3.povRight().whileTrue(dumpRoller.dropCoral(-0.15)).onFalse(dumpRoller.keepCoral().withTimeout(0.1));
 
-        // Continually runs Dump Roller until coral detected
-        joystick2.leftTrigger().onTrue(new IntakeCoral(this));
-
+        
         // Manual pivot position control
-        joystick2.rightTrigger().onTrue(new InstantCommand(() -> pivotSub.setPivotSetpoint(0.4d)));
+        joystick3.rightTrigger().onTrue(new InstantCommand(() -> pivotSub.setPivotSetpoint(0.4d)));
 
         // Zero pivot encoders
-        joystick2.rightBumper().onTrue(new InstantCommand(() -> pivotSub.zeroPositionEncoders()));
+        joystick3.rightBumper().onTrue(new InstantCommand(() -> pivotSub.zeroPositionEncoders()));
 
         // Manual dump roller control
-        joystick2.leftBumper().onTrue(dumpRoller.dropCoral(.5));
+        joystick3.leftBumper().onTrue(dumpRoller.dropCoral(.5));
     }
 
     // Outtakes Dump Roller Coral onto Reef
     private Command CoralOuttake(){
         // List of speeds for each elevator level (0-4)
         // Position 0 uses a slower speed (0.1), all other positions use 0.2
-        double[] launchSpeeds = {0.3, 0.3, 0.3, 0.3, 0.3};
+        double[] launchSpeeds = {0.2, 0.2, 0.2, 0.3, 0.3};
         
         // Safety check to prevent array index out of bounds
         int posIndex = Math.min(elevator.pos, launchSpeeds.length - 1);
 
         // Sequence of Commands
         return Commands.sequence(   
-            dumpRoller.dropCoral(launchSpeeds[posIndex]).withTimeout(0.5),
+            dumpRoller.dropCoral(0.25).withTimeout(0.5),
             Commands.runOnce(() -> dumpRoller.setCoralLoaded(false)), // Clear coral state after launch
-            dumpRoller.keepCoral().withTimeout(0.01),
+            dumpRoller.keepCoral().withTimeout(0.1),
             // Drops to Level 0 after done
             elevator.setPosition(0)
         );

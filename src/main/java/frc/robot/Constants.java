@@ -30,14 +30,14 @@ public final class Constants {
         // Pivot encoder zeros at horizontal extended position
         // The robot physically starts at stowed position
         // Encoder offset is applied in PivotIntakeSubsystem constructor
-        public static final double STOWED_POSITION = 0.42;          // Home position
-        public static final double STOWED_POSITION_WITH_CORAL = 0.44; // Slightly above stowed for coral transfer
+        public static final double STOWED_POSITION = 0.46;          // Home position
+        public static final double STOWED_POSITION_WITH_CORAL = 0.438; // Slightly above stowed for coral transfer
         public static final double INTAKE_POSITION = 0.0;         // Ground collection
-        public static final double REEF_SCORING_POSITION = 0.35;   // Reef scoring position
+        public static final double REEF_SCORING_POSITION = 0.25;   // Reef scoring position
         
         // Motor speeds
         public static final double INTAKE_SPEED = -0.3;             // Collecting coral
-        public static final double INTAKE_REVERSE_SPEED = 0.6;    // Intake wheels reverse during scoring
+        public static final double INTAKE_REVERSE_SPEED = 0.3;    // Intake wheels reverse during scoring
         
         // Sensor thresholds
         public static final double CORAL_DETECTED_DISTANCE_M = 0.03;
@@ -50,7 +50,7 @@ public final class Constants {
         public static final double PIVOT_KD = 0.02;   // setting to 14 caused really fast
         public static final double PIVOT_KG = -3; // Increased from .45 
         //public static final double PIVOT_KA = 3; // Feedforward thingy
-        public static final double PIVOT_TOLERANCE = 0.02;
+        public static final double PIVOT_TOLERANCE = 0.09; // Increased from 0.02 - less tight for faster settling
     }
 
     // Returns true if the value is inside the list

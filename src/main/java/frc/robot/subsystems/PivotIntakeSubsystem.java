@@ -242,7 +242,7 @@ public class PivotIntakeSubsystem extends SubsystemBase {
      * Complete sequence to collect coral from ground and transfer to dump roller.
      * Sequence:
      * 1. Deploy pivot to intake position
-     * 2. Run intake wheels until coral detected by sensor
+     * 2. Run intake wheels until coral detected by sensor (10 second safety timeout)
      * 3. Wait 0.125s, then raise pivot to transfer position (0.44)
      * 4. Transfer coral (RACE - stops when FIRST command finishes):
      *    - Pivot wheels REVERSE (push coral out)
@@ -260,9 +260,11 @@ public class PivotIntakeSubsystem extends SubsystemBase {
             Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.INTAKE_POSITION)),
             Commands.waitUntil(this::isPivotAtSetpoint),
             
-            // STEP 2: Run Intake Wheels until coral detected, then keep running for extra time to pull it fully in
+
+            // STEP 2: Run Intake Wheels until coral detected OR 10 second safety timeout
             Commands.run(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_SPEED), this)
-                .until(this::isCoralDetected),
+                .until(this::isCoralDetected)
+                .withTimeout(10.0), // 10 second max safety timeout
             // Keep running intake for 0.5 seconds after detection to fully pull coral in
             Commands.run(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_SPEED), this)
                 .withTimeout(0.5),
@@ -271,11 +273,18 @@ public class PivotIntakeSubsystem extends SubsystemBase {
             
             // STEP 2.5: Wait 0.125 seconds
             Commands.waitSeconds(0.125),
+
             
-            // STEP 3: Go directly to transfer position (0.44)
+            // STEP 3: Start dump roller early, move to transfer position (0.44)
+            // Start the dump roller motor now (non-blocking) so it's already spinning when pivot arrives
+            Commands.runOnce(() -> dumpRoller.coralMotor.set(1.0)),
+            // Move to transfer position and wait until pivot is there
             Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.STOWED_POSITION_WITH_CORAL)),
             Commands.waitUntil(this::isPivotAtSetpoint),
-            
+
+            // STEP 3.5: Wait 0.25 seconds at transfer position before starting transfer
+            Commands.waitSeconds(0.25),
+
             // STEP 4: Transfer Coral (RACE - ends when coral detected OR 3 second timeout)
             Commands.race(
                 // Dump roller wheels RUN (pull coral in) - runs until current spike detected
@@ -290,6 +299,53 @@ public class PivotIntakeSubsystem extends SubsystemBase {
             Commands.runOnce(() -> setIntakeSpeed(0), this),
             Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.STOWED_POSITION)),
             Commands.runOnce(() -> setHasCoralInIntake(false)) // Coral transferred to dump roller
+        );
+    }
+
+    /**
+     * Emergency eject and score at L1 reef position.
+     * Ejects EVERYTHING from both pivot intake AND dump roller.
+     * Sequence:
+     * 1. Move pivot to L1 reef scoring position (0.35)
+     * 2. Reverse BOTH pivot intake wheels AND dump roller to eject all coral
+     * 3. Continue reversing until pivot sensor no longer detects coral
+     * 4. Continue reversing for 0.5 seconds to ensure everything is fully ejected
+     * 5. Stop all wheels and return to stowed position
+     * 6. Clear coral states
+     * 
+     * @param dumpRoller The DumpRollerSubsystem to eject coral from
+     * @return Command sequence for emergency full eject at L1
+     */
+    public Command collectForL1(DumpRollerSubsystem dumpRoller) {
+        return Commands.sequence(
+            // STEP 1: Move to L1 reef scoring position (0.35)
+            Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.REEF_SCORING_POSITION)),
+
+            Commands.waitUntil(this::isPivotAtSetpoint),
+
+            // STEP 2 & 3: Reverse BOTH pivot and dump roller for 3 seconds
+            Commands.parallel(
+                Commands.run(() -> setIntakeSpeed(0.3), this), // Pivot reverse at full speed
+                Commands.run(() -> dumpRoller.coralMotor.set(-0.2)) // Dump roller reverse
+            ).withTimeout(0.5),
+
+            // STEP 4: Continue reversing both for 0.5 seconds to ensure full ejection
+            Commands.parallel(
+                Commands.run(() -> setIntakeSpeed(0.3), this),
+                Commands.run(() -> dumpRoller.coralMotor.set(-0.2))
+            ).withTimeout(0.5),
+            
+            // STEP 5: Stop all wheels
+            Commands.runOnce(() -> setIntakeSpeed(0), this),
+            Commands.runOnce(() -> dumpRoller.coralMotor.set(0)),
+            
+            // Return to stowed position
+            Commands.runOnce(() -> setPivotSetpoint(PivotIntakeConstants.STOWED_POSITION)),
+            Commands.waitUntil(this::isPivotAtSetpoint),
+            
+            // STEP 6: Clear all coral states
+            Commands.runOnce(() -> setHasCoralInIntake(false)),
+            Commands.runOnce(() -> dumpRoller.setCoralLoaded(false))
         );
     }
     
