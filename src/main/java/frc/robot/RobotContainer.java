@@ -129,9 +129,9 @@ public class RobotContainer {
 
         joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
 
-        joystick.rightBumper().whileTrue(new AlignReef(this, Constants.ReefPos.RIGHT));
+        joystick.rightBumper().whileTrue(new AlignReef(this, Constants.ReefPos.LEFT));
 
-        joystick.leftBumper().whileTrue(new AlignReef(this, Constants.ReefPos.LEFT));
+        joystick.leftBumper().whileTrue(new AlignReef(this, Constants.ReefPos.RIGHT));
         
         joystick.pov(0).whileTrue(drivetrain.applyRequest(() ->
             forwardStraight.withVelocityX(0.5).withVelocityY(0))

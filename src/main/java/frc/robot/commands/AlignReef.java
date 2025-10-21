@@ -31,12 +31,19 @@ public class AlignReef extends Command {
     private RobotContainer robotContainer;
 
     Timer timer = new Timer();
+    
+    /* ----- VELOCITY ----- */
+    // TUNE: Increase for faster alignment, decrease for better control
+    private final double maxVelocity = 6.0;  // Max translation speed (m/s)
+    // TUNE: Increase for faster rotation, decrease if spinning too fast
+    private final double maxAngularVelocity = 4.5;
+    ;  // Max rotation speed (rad/s)
 
     /* ----- PIDs ----- */
     // TUNE: Increase kP for faster approach, decrease if overshooting
-    private PIDController pidDistance = new PIDController(6.0, 0, 0);  // Translation: Increase P for more aggressive, decrease for smoother
+    private PIDController pidDistance = new PIDController(6.0, maxVelocity * 0.5, maxVelocity * 0.25);  // Translation: Increase P for more aggressive, decrease for smoother
     // TUNE: Increase kP for faster rotation, decrease if rotation is jerky
-    private PIDController pidRotate = new PIDController(3.0, 0, 0);    // Rotation: Increase P for faster snap, decrease for smooth turn
+    private PIDController pidRotate = new PIDController(4.0, 3.0, 1.5);    // Rotation: Increase P for faster snap, decrease for smooth turn
 
     // Creates a swerve request that specifies the robot to move FieldCentric
     private final SwerveRequest.FieldCentric driveRequest = new SwerveRequest.FieldCentric()
@@ -47,18 +54,12 @@ public class AlignReef extends Command {
     // The Desired position to go to
     private Pose2d targetPose;
 
-    /* ----- VELOCITY ----- */
-    // TUNE: Increase for faster alignment, decrease for better control
-    private final double maxVelocity = 1.5;  // Max translation speed (m/s)
-    // TUNE: Increase for faster rotation, decrease if spinning too fast
-    private final double maxAngularVelocity = 2.0;  // Max rotation speed (rad/s)
-
     /* ----- FRICTION COMPENSATION ----- */
     // TUNE: Increase if robot stops short of target, decrease if overshooting
-    private final double frictionConstant = 0.02;  // Friction compensation: Increase if stopping too early, decrease if overshooting
+    private final double frictionConstant = 0.00;  // Friction compensation: Increase if stopping too early, decrease if overshooting
 
     /* ----- TOLERANCES ----- */
-    private final double positionTolerance = 0.01;  // Position tolerance (m)
+    private final double positionTolerance = 0.25;  // Position tolerance (m)
     private final double yawTolerance = Math.PI / 32;  // Rotation tolerance (~5.6°)
 
     // Distance threshold for friction compensation
@@ -320,7 +321,7 @@ is     */
         SmartDashboard.putBoolean("AlignReef/Interrupted", interrupted);
         SmartDashboard.putNumber("AlignReef/EndTime", timer.get());
         
-        //drivetrain.setControl(stop); //May or may not be needed
+        drivetrain.setControl(stop); //May or may not be needed
         robotContainer.MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
     }
 
