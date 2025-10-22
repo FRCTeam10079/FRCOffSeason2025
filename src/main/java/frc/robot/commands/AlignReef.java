@@ -2,7 +2,6 @@ package frc.robot.commands;
 
 import static edu.wpi.first.units.Units.MetersPerSecond;
 
-
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
@@ -22,6 +21,7 @@ import frc.robot.RobotContainer;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.LimelightSubsystem;
+import frc.robot.util.NetworkedLib.NetworkedPID;
 
 public class AlignReef extends Command {
 
@@ -41,9 +41,9 @@ public class AlignReef extends Command {
 
     /* ----- PIDs ----- */
     // TUNE: Increase kP for faster approach, decrease if overshooting
-    private PIDController pidDistance = new PIDController(6.0, maxVelocity * 0.5, maxVelocity * 0.25);  // Translation: Increase P for more aggressive, decrease for smoother
+    private PIDController pidDistance = new NetworkedPID(6.0, maxVelocity * 0.5, maxVelocity * 0.25, "Align_Distance");  // Translation: Increase P for more aggressive, decrease for smoother
     // TUNE: Increase kP for faster rotation, decrease if rotation is jerky
-    private PIDController pidRotate = new PIDController(4.0, 3.0, 1.5);    // Rotation: Increase P for faster snap, decrease for smooth turn
+    private PIDController pidRotate = new NetworkedPID(4.0, 3.0, 1.5, "Align_Rotate");    // Rotation: Increase P for faster snap, decrease for smooth turn
 
     // Creates a swerve request that specifies the robot to move FieldCentric
     private final SwerveRequest.FieldCentric driveRequest = new SwerveRequest.FieldCentric()
