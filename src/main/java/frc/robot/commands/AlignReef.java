@@ -19,6 +19,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants;
 import frc.robot.Constants.*;
 import frc.robot.RobotContainer;
+import frc.robot.RobotStateMachine;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.LimelightSubsystem;
@@ -29,6 +30,7 @@ public class AlignReef extends Command{
     private LimelightSubsystem limelight;
     private CommandSwerveDrivetrain drivetrain;
     private RobotContainer robotContainer;
+    private RobotStateMachine stateMachine;
 
     Timer timer = new Timer();
 
@@ -85,6 +87,7 @@ public class AlignReef extends Command{
         this.robotContainer = robotContainer;
         this.drivetrain = robotContainer.drivetrain;
         this.limelight = robotContainer.limelight;
+        this.stateMachine = RobotStateMachine.getInstance();
         this.reefPos = reefPos;
 
         // -180 and 180 degrees are the same point, so its continuous
@@ -97,11 +100,14 @@ public class AlignReef extends Command{
     
     @Override
     public void initialize(){
-        // Starts timer
+        // STATE MACHINE INTEGRATION - Vision alignment tracking
+        stateMachine.setDrivetrainMode(RobotStateMachine.DrivetrainMode.VISION_TRACKING);
+        stateMachine.setGameState(RobotStateMachine.GameState.ALIGNING_TO_SCORE);
+        
         // Starts timer
         timer.restart();
-        Logger.recordOutput("Reefscape/AlignReef/CommandStarted", true);
-        Logger.recordOutput("Reefscape/AlignReef/StartTime", timer.get());
+        Logger.recordOutput("AlignReef/CommandStarted", true);
+        Logger.recordOutput("AlignReef/StartTime", timer.get());
         
         double minDistance = Double.MAX_VALUE;
         Pose2d robotPose = drivetrain.getState().Pose;
@@ -426,17 +432,29 @@ public class AlignReef extends Command{
     // Called once Command ends
     @Override
     public void end(boolean interrupted) {
+        // STATE MACHINE INTEGRATION - Return to normal drive mode
+        stateMachine.setDrivetrainMode(RobotStateMachine.DrivetrainMode.FIELD_CENTRIC);
+        
+        if (!interrupted) {
+            // Successfully aligned - update game state
+            stateMachine.setGameState(RobotStateMachine.GameState.CORAL_LOADED);
+        }
+        
         // Ensures drivetrain stop
         drivetrain.setControl(stop);
         robotContainer.MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.7; //remove 0.7
         
-/*         // Reset the tag 10 or tag 21 flag when command ends
-        initiallyDetectedTag10 = false;
-        initiallyDetectedTag21 = false;
-        System.out.println("Reset initiallyDetectedTag10 flag");
-        Logger.recordOutput("Reefscape/AlignReef/InitiallyDetectedTag10", false);
-        System.out.println("Reset initiallyDetectedTag21 flag");
-        Logger.recordOutput("Reefscape/AlignReef/InitiallyDetectedTag21", false); */
+        // AdvantageKit logging
+        Logger.recordOutput("AlignReef/CommandEnded", true);
+        Logger.recordOutput("AlignReef/Interrupted", interrupted);
+        Logger.recordOutput("AlignReef/EndTime", timer.get());
+        Logger.recordOutput("AlignReef/TotalDuration", timer.get());
+        
+        // SmartDashboard (legacy)
+        SmartDashboard.putBoolean("AlignReef/CommandEnded", true);
+        SmartDashboard.putBoolean("AlignReef/Interrupted", interrupted);
+        SmartDashboard.putNumber("AlignReef/EndTime", timer.get());
+        SmartDashboard.putNumber("AlignReef/TotalDuration", timer.get());
         
         if (interrupted) {
             System.out.println("AlignReef interrupted.");

@@ -30,11 +30,15 @@ import frc.robot.subsystems.DumpRollerSubsystem;
 import frc.robot.subsystems.ElevatorSubsystem;
 import frc.robot.subsystems.LimelightSubsystem;
 import frc.robot.subsystems.PivotIntakeSubsystem;
+import frc.robot.subsystems.SuperstructureSubsystem;
 
 public class RobotContainer {
     public double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.7; // kSpeedAt12Volts desired top speed
     public double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
 
+    // MASTER STATE MACHINE - Controls the entire robot
+    private final RobotStateMachine robotStateMachine = RobotStateMachine.getInstance();
+    
     /* Setting up bindings for necessary control of the swerve drive platform */
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
             .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
@@ -48,7 +52,7 @@ public class RobotContainer {
     // Joysticks
     public final CommandXboxController joystick = new CommandXboxController(0);
     public final CommandXboxController joystick2 = new CommandXboxController(1);
-    public final CommandXboxController joystick3 = new CommandXboxController(2);
+    public final CommandXboxController joystick3 = new CommandXboxController(2); // Test controller
 
     // Subsystems
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
@@ -56,50 +60,55 @@ public class RobotContainer {
     public final ElevatorSubsystem elevator = new ElevatorSubsystem();
     public final PivotIntakeSubsystem pivotSub = new PivotIntakeSubsystem();
     public final DumpRollerSubsystem dumpRoller = new DumpRollerSubsystem();
+    
+    // STATE MACHINE - Coordinates all mechanisms
+    public final frc.robot.subsystems.SuperstructureSubsystem superstructure = new frc.robot.subsystems.SuperstructureSubsystem(elevator, pivotSub, dumpRoller);
 
     /* Path follower */
     private final SendableChooser<Command> autoChooser;
 
     public RobotContainer() {
-        // Register PathPlanner Named Commands
-        // PIVOT INTAKE COMMANDS
-        NamedCommands.registerCommand("Deploy Pivot", pivotSub.deployPivot()); // Move pivot to ground intake position
-        NamedCommands.registerCommand("Stow Pivot", pivotSub.stowPivot()); // Move pivot to home position
-        NamedCommands.registerCommand("Intermediate Pivot", pivotSub.intermediatePivot()); // Move pivot to reef scoring position
-        NamedCommands.registerCommand("Collect Coral", pivotSub.collectCoral()); // Deploy, intake until detected, stow
-        NamedCommands.registerCommand("Collect and Transfer Coral", pivotSub.collectAndTransferCoral(dumpRoller)); // Full auto: collect + transfer to dump
-        NamedCommands.registerCommand("Transfer to Dump", pivotSub.transferCoralToDumpRoller(dumpRoller)); // Transfer coral to dump roller only
-        NamedCommands.registerCommand("Score L1/ Eject", pivotSub.collectForL1(dumpRoller));
+        // STATE MACHINE NAMED COMMANDS - Use these for autonomous!
         
-        // INTAKE WHEEL COMMANDS
-        NamedCommands.registerCommand("Start Intake Wheels", pivotSub.intakeWheels()); // Run intake wheels forward
-        NamedCommands.registerCommand("Reverse Intake Wheels", pivotSub.reverseIntakeWheels()); // Run intake wheels backward
-        NamedCommands.registerCommand("Stop Intake Wheels", pivotSub.stopWheels()); // Stop intake wheels
+        // GROUND INTAKE
+        NamedCommands.registerCommand("Collect Coral", superstructure.collectCoralFromGround());
+        NamedCommands.registerCommand("Collect and Transfer", superstructure.collectAndTransfer());
+        NamedCommands.registerCommand("Transfer to Dump", superstructure.transferCoralToDump());
         
-        // ELEVATOR COMMANDS
-        NamedCommands.registerCommand("Raise L0", elevator.setPositionwithThreshold(0)); // Move elevator to level 0
-        NamedCommands.registerCommand("Raise L1", elevator.setPositionwithThreshold(1)); // Move elevator to level 1
-        NamedCommands.registerCommand("Raise L2", elevator.setPositionwithThreshold(2)); // Move elevator to level 2
-        NamedCommands.registerCommand("Raise L3", elevator.setPositionwithThreshold(3)); // Move elevator to level 3
-        NamedCommands.registerCommand("Raise L4", elevator.setPositionwithThreshold(4)); // Move elevator to level 4
+        // SCORING
+        NamedCommands.registerCommand("Score L1", superstructure.scoreLevel1());
+        NamedCommands.registerCommand("Score L2", superstructure.scoreLevel2());
+        NamedCommands.registerCommand("Score L3", superstructure.scoreLevel3());
+        NamedCommands.registerCommand("Score L4", superstructure.scoreLevel4());
+        NamedCommands.registerCommand("Score Reef", superstructure.scoreReef());
         
-        // DUMP ROLLER COMMANDS
-        NamedCommands.registerCommand("Intake Coral", new IntakeCoral(this)); // Run dump roller until current spike detected
-        NamedCommands.registerCommand("Drop Coral", dumpRoller.dropCoral(0.2).withTimeout(0.5)); // Outtake coral for 0.5s
-        NamedCommands.registerCommand("Keep Coral", dumpRoller.keepCoral()); // Hold/stop dump roller
-        NamedCommands.registerCommand("Prepare Coral Out", dumpRoller.PrepareCoral(true)); // Push coral out slightly
-        NamedCommands.registerCommand("Prepare Coral In", dumpRoller.PrepareCoral(false)); // Pull coral in slightly
-        NamedCommands.registerCommand("SCORE", CoralOuttake());
-
-
-        // Aligns to the Left Reef side
-        NamedCommands.registerCommand("Align Left", new AlignReef(this, ReefPos.LEFT).withTimeout(1.0));
-        // Aligns to the Right Reef side
-        NamedCommands.registerCommand("Align Right", new AlignReef(this, ReefPos.RIGHT).withTimeout(1.0));
+        // UTILITY
+        NamedCommands.registerCommand("Return to Idle", superstructure.returnToIdle());
+        NamedCommands.registerCommand("Prepare Coral Out", superstructure.prepareCoralOut());
+        NamedCommands.registerCommand("Prepare Coral In", superstructure.prepareCoralIn());
+        
+        // VISION ALIGNMENT (State machine aware)
+        NamedCommands.registerCommand("Align Left Reef", new AlignReef(this, ReefPos.LEFT));
+        NamedCommands.registerCommand("Align Right Reef", new AlignReef(this, ReefPos.RIGHT));
+        
+        // LEGACY COMMANDS (for backward compatibility with old autos)
+        NamedCommands.registerCommand("Deploy Pivot", pivotSub.deployPivot());
+        NamedCommands.registerCommand("Stow Pivot", pivotSub.stowPivot());
+        NamedCommands.registerCommand("Intermediate Pivot", pivotSub.intermediatePivot());
+        NamedCommands.registerCommand("Start Intake Wheels", pivotSub.intakeWheels());
+        NamedCommands.registerCommand("Reverse Intake Wheels", pivotSub.reverseIntakeWheels());
+        NamedCommands.registerCommand("Stop Intake Wheels", pivotSub.stopWheels());
+        NamedCommands.registerCommand("Raise L0", elevator.setPositionwithThreshold(0));
+        NamedCommands.registerCommand("Raise L1", elevator.setPositionwithThreshold(1));
+        NamedCommands.registerCommand("Raise L2", elevator.setPositionwithThreshold(2));
+        NamedCommands.registerCommand("Raise L3", elevator.setPositionwithThreshold(3));
+        NamedCommands.registerCommand("Raise L4", elevator.setPositionwithThreshold(4));
+        NamedCommands.registerCommand("Intake Coral", new IntakeCoral(this));
+        NamedCommands.registerCommand("Drop Coral", dumpRoller.dropCoral(0.2).withTimeout(0.5));
+        NamedCommands.registerCommand("Keep Coral", dumpRoller.keepCoral());
         
         // Build auto chooser with PathPlanner
         autoChooser = AutoBuilder.buildAutoChooser("Tests");
-        System.out.println("Have added the paths");
         SmartDashboard.putData("Auto Mode", autoChooser);
 
         // DO NOT CHANGE.
@@ -127,11 +136,16 @@ public class RobotContainer {
             )
         );
 
-        joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
+        // A Button: Brake (locks wheels) - Updates state machine to track locked state
+        joystick.a().onTrue(Commands.runOnce(() -> 
+            robotStateMachine.setDrivetrainMode(RobotStateMachine.DrivetrainMode.LOCKED)))
+            .onFalse(Commands.runOnce(() -> 
+            robotStateMachine.setDrivetrainMode(RobotStateMachine.DrivetrainMode.FIELD_CENTRIC)))
+            .whileTrue(drivetrain.applyRequest(() -> brake));
 
-        joystick.rightBumper().whileTrue(new AlignReef(this, Constants.ReefPos.RIGHT));
-
-        joystick.leftBumper().whileTrue(new AlignReef(this, Constants.ReefPos.LEFT));
+        // State machine tracks vision alignment automatically via AlignReef
+        joystick.rightBumper().whileTrue(new AlignReef(this, Constants.ReefPos.LEFT));
+        joystick.leftBumper().whileTrue(new AlignReef(this, Constants.ReefPos.RIGHT));
         
         joystick.pov(0).whileTrue(drivetrain.applyRequest(() ->
             forwardStraight.withVelocityX(0.5).withVelocityY(0))
@@ -155,71 +169,88 @@ public class RobotContainer {
         // Overdrive button for speed
         joystick.b().whileTrue(increaseSpeed()).onFalse(decreaseSpeed()); 
 
-        // Outtakes coral 
-        joystick.rightTrigger().onTrue(CoralOuttake());
+        joystick.rightTrigger().onTrue(SmartScore()); // Smart scoring based on elevator level
 
         // Level 1
-        joystick.leftTrigger().onTrue(elevator.setPosition(1));
+        joystick.leftTrigger().onTrue(superstructure.scoreLevel1());
 
         /////////////////////////////
-        // OPERATOR CONTROL
+        // OPERATOR CONTROL - STATE MACHINE
         /////////////////////////////
-        // TOGGLE ELEVATOR POSITIONS
-        // Level 0
-        joystick2.b().onTrue(elevator.setPosition(0));
-        // Level 2
-        joystick2.a().onTrue(elevator.setPosition(2));
-        // Level 3
-        joystick2.x().onTrue(elevator.setPosition(3));
-        // Level 4
-        joystick2.y().onTrue(elevator.setPosition(4));
-
-        // PIVOT INTAKE CONTROLS
-        // Full auto sequence: collect coral and transfer to dump roller
-        joystick2.povUp().onTrue(pivotSub.collectAndTransferCoral(dumpRoller));
-        joystick2.povRight().onTrue(pivotSub.collectForL1(dumpRoller));
-        //joystick2.povRight().onTrue(pivotSub.setIntakeSpeed(PivotIntakeConstants.INTAKE_REVERSE_SPEED));
         
-        // Continually runs Dump Roller until coral detected
-        joystick3.leftTrigger().onTrue(new IntakeCoral(this));
+        // SCORING BUTTONS - Automatic state machine sequences
+        joystick2.b().onTrue(superstructure.scoreLevel1());
+        joystick2.a().onTrue(superstructure.scoreLevel2());
+        joystick2.x().onTrue(superstructure.scoreLevel3());
+        joystick2.y().onTrue(superstructure.scoreLevel4());
 
-        // JOYSTICK 3 = DEBUG JOYSTICK
-        // Just collect coral from ground
-        joystick3.povDown().onTrue(pivotSub.collectCoral());
+        // INTAKE CONTROLS - Full auto sequence
+        joystick2.povUp().onTrue(superstructure.collectAndTransfer());
 
-        // Sticks coral out when holding Left Dpad
-        //joystick2.povLeft().whileTrue(dumpRoller.dropCoral(0.15)).onFalse(dumpRoller.keepCoral().withTimeout(0.1));
-
-        joystick3.povLeft().onTrue(pivotSub.transferCoralToDumpRoller(dumpRoller));
-
-        // Sticks coral in when holding Right Dpad
-        joystick3.povRight().whileTrue(dumpRoller.dropCoral(-0.15)).onFalse(dumpRoller.keepCoral().withTimeout(0.1));
-
+        // MANUAL OVERRIDES - Direct subsystem control (bypasses state machine)
+        // Enter manual mode, then control subsystems directly
+        joystick2.povRight().onTrue(superstructure.enterManualMode());
         
-        // Manual pivot position control
-        joystick3.rightTrigger().onTrue(new InstantCommand(() -> pivotSub.setPivotSetpoint(0.4d)));
-
-        // Zero pivot encoders
-        joystick3.rightBumper().onTrue(new InstantCommand(() -> pivotSub.zeroPositionEncoders()));
-
         // Manual dump roller control
-        joystick3.leftBumper().onTrue(dumpRoller.dropCoral(.5));
+        joystick2.leftBumper().whileTrue(dumpRoller.dropCoral(0.2))
+            .onFalse(dumpRoller.keepCoral());
+        
+        // Manual pivot control
+        joystick2.rightTrigger().onTrue(new InstantCommand(() -> pivotSub.setPivotSetpoint(0.4d)));
+        
+        // Zero pivot encoders
+        joystick2.rightBumper().onTrue(new InstantCommand(() -> pivotSub.zeroPositionEncoders()));
+
+        // Manual intake into dump (legacy)
+        joystick2.leftTrigger().onTrue(new IntakeCoral(this));
+        
+        // Return to state machine control
+        joystick2.start().onTrue(superstructure.exitManualMode());
+
+        /////////////////////////////
+        // TEST CONTROLLER (Joystick 3) - Individual testing commands
+        /////////////////////////////
+        joystick3.povUp().onTrue(superstructure.collectCoralFromGround());   // Test: Just collect
+        joystick3.povDown().onTrue(superstructure.transferCoralToDump());    // Test: Just transfer
+        joystick3.start().onTrue(superstructure.returnToIdle());             // Test: Return to idle
     }
 
-    // Outtakes Dump Roller Coral onto Reef
+    /**
+     * Smart Score - Uses state machine to score at current elevator level
+     */
+    private Command SmartScore() {
+        return Commands.either(
+            superstructure.scoreLevel1(),
+            Commands.either(
+                superstructure.scoreLevel2(),
+                Commands.either(
+                    superstructure.scoreLevel3(),
+                    superstructure.scoreLevel4(),
+                    () -> elevator.pos == 3
+                ),
+                () -> elevator.pos == 2
+            ),
+            () -> elevator.pos <= 1
+        );
+    }
+    
+    /**
+     * Legacy Coral Outtake - Direct subsystem control (bypasses state machine)
+     * Kept for backward compatibility
+     */
     private Command CoralOuttake(){
         // List of speeds for each elevator level (0-4)
         // Position 0 uses a slower speed (0.1), all other positions use 0.2
-        double[] launchSpeeds = {0.2, 0.2, 0.2, 0.3, 0.3};
+        double[] launchSpeeds = {0.1, 0.1, 0.2, 0.2, 0.2};
         
         // Safety check to prevent array index out of bounds
         int posIndex = Math.min(elevator.pos, launchSpeeds.length - 1);
 
         // Sequence of Commands
         return Commands.sequence(   
-            dumpRoller.dropCoral(0.25).withTimeout(0.5),
+            dumpRoller.dropCoral(launchSpeeds[posIndex]).withTimeout(0.5),
             Commands.runOnce(() -> dumpRoller.setCoralLoaded(false)), // Clear coral state after launch
-            dumpRoller.keepCoral().withTimeout(0.1),
+            dumpRoller.keepCoral().withTimeout(0.01),
             // Drops to Level 0 after done
             elevator.setPosition(0)
         );

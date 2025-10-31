@@ -220,6 +220,230 @@
           }
         ]
       }
+    },
+    {
+      "name": "State Machine",
+      "grid_layout": {
+        "layouts": [],
+        "containers": [
+          {
+            "title": "Match State",
+            "x": 0.0,
+            "y": 0.0,
+            "width": 320.0,
+            "height": 96.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Match State",
+              "period": 0.1,
+              "data_type": "string",
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Match Description",
+            "x": 320.0,
+            "y": 0.0,
+            "width": 480.0,
+            "height": 96.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Match Description",
+              "period": 0.1,
+              "data_type": "string",
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Game State",
+            "x": 0.0,
+            "y": 96.0,
+            "width": 320.0,
+            "height": 96.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Game State",
+              "period": 0.1,
+              "data_type": "string",
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Game Description",
+            "x": 320.0,
+            "y": 96.0,
+            "width": 480.0,
+            "height": 96.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Game Description",
+              "period": 0.1,
+              "data_type": "string",
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Drivetrain Mode",
+            "x": 0.0,
+            "y": 192.0,
+            "width": 400.0,
+            "height": 96.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Drivetrain Mode",
+              "period": 0.1,
+              "data_type": "string",
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Drive Description",
+            "x": 400.0,
+            "y": 192.0,
+            "width": 400.0,
+            "height": 96.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Drive Description",
+              "period": 0.1,
+              "data_type": "string",
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Alliance",
+            "x": 800.0,
+            "y": 192.0,
+            "width": 240.0,
+            "height": 96.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Alliance",
+              "period": 0.1,
+              "data_type": "string",
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Time in State (s)",
+            "x": 0.0,
+            "y": 288.0,
+            "width": 240.0,
+            "height": 64.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Time in State",
+              "period": 0.1,
+              "data_type": "double",
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Last State Change",
+            "x": 240.0,
+            "y": 288.0,
+            "width": 800.0,
+            "height": 64.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Last State Change",
+              "period": 0.1,
+              "data_type": "string",
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Is Endgame",
+            "x": 0.0,
+            "y": 352.0,
+            "width": 160.0,
+            "height": 64.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Is Endgame",
+              "period": 0.1,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070
+            }
+          },
+          {
+            "title": "Robot Enabled",
+            "x": 160.0,
+            "y": 352.0,
+            "width": 160.0,
+            "height": 64.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Robot Enabled",
+              "period": 0.1,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070
+            }
+          },
+          {
+            "title": "Is Autonomous",
+            "x": 320.0,
+            "y": 352.0,
+            "width": 160.0,
+            "height": 64.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Is Autonomous",
+              "period": 0.1,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070
+            }
+          },
+          {
+            "title": "Is Collecting",
+            "x": 480.0,
+            "y": 352.0,
+            "width": 160.0,
+            "height": 64.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Is Collecting",
+              "period": 0.1,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070
+            }
+          },
+          {
+            "title": "Is Scoring",
+            "x": 640.0,
+            "y": 352.0,
+            "width": 160.0,
+            "height": 64.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Is Scoring",
+              "period": 0.1,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070
+            }
+          },
+          {
+            "title": "Is Navigating",
+            "x": 800.0,
+            "y": 352.0,
+            "width": 160.0,
+            "height": 64.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Is Navigating",
+              "period": 0.1,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070
+            }
+          }
+        ]
+      }
     }
   ]
 }
