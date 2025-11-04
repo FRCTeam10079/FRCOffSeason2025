@@ -96,6 +96,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
      */
     public void requestState(RobotState newState) {
         requestedState = newState;
+        // basically just put some code here that works
     }
     
     /**

@@ -130,8 +130,8 @@ public class RobotContainer {
         drivetrain.setDefaultCommand(
             // Drivetrain will execute this command periodically
             drivetrain.applyRequest(() ->
-                drive.withVelocityX(-joystick.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
-                    .withVelocityY(-joystick.getLeftX() * MaxSpeed) // Drive left with negative X (left)
+                drive.withVelocityX(joystick.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
+                    .withVelocityY(joystick.getLeftX() * MaxSpeed) // Drive left with negative X (left)
                     .withRotationalRate(-joystick.getRightX() * MaxAngularRate) // Drive counterclockwise with negative X (left)
             )
         );
@@ -144,8 +144,8 @@ public class RobotContainer {
             .whileTrue(drivetrain.applyRequest(() -> brake));
 
         // State machine tracks vision alignment automatically via AlignReef
-        joystick.rightBumper().whileTrue(new AlignReef(this, Constants.ReefPos.LEFT));
-        joystick.leftBumper().whileTrue(new AlignReef(this, Constants.ReefPos.RIGHT));
+        joystick.rightBumper().whileTrue(new AlignReef(this, Constants.ReefPos.RIGHT));
+        joystick.leftBumper().whileTrue(new AlignReef(this, Constants.ReefPos.LEFT));
         
         joystick.pov(0).whileTrue(drivetrain.applyRequest(() ->
             forwardStraight.withVelocityX(0.5).withVelocityY(0))
