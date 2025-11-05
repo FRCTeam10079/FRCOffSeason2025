@@ -94,10 +94,19 @@ public class SuperstructureSubsystem extends SubsystemBase {
     
     /**
      * Request a state transition
+     * Immediately applies the state transition for responsive control
      */
     public void requestState(RobotState newState) {
         requestedState = newState;
-        // basically just put some code here that works
+        currentState = newState;
+        
+        // Log state transition immediately
+        System.out.println("State transition: " + currentState.name() + " - " + currentState.description);
+        Logger.recordOutput("Superstructure/StateTransition", currentState.name() + " - " + currentState.description);
+        Logger.recordOutput("Superstructure/TransitionTimestamp", edu.wpi.first.wpilibj.Timer.getFPGATimestamp());
+        
+        // Apply state goals immediately
+        applyStateGoals();
     }
     
     /**
@@ -135,18 +144,8 @@ public class SuperstructureSubsystem extends SubsystemBase {
     
     @Override
     public void periodic() {
-        // State machine update - apply state goals to subsystems
-        if (currentState != requestedState) {
-            // Transition to new state
-            currentState = requestedState;
-            System.out.println("State transition: " + currentState.name() + " - " + currentState.description);
-            
-            // AdvantageKit: Log state transition
-            Logger.recordOutput("Superstructure/StateTransition", currentState.name() + " - " + currentState.description);
-            Logger.recordOutput("Superstructure/TransitionTimestamp", edu.wpi.first.wpilibj.Timer.getFPGATimestamp());
-        }
-        
-        // Apply state goals to subsystems
+        // State machine continuously applies state goals to subsystems
+        // This ensures the elevator stays at the correct level even if disturbed
         applyStateGoals();
         
         // Update telemetry (AdvantageKit + SmartDashboard)
@@ -178,12 +177,13 @@ public class SuperstructureSubsystem extends SubsystemBase {
     
     /**
      * Apply current state's goals to all subsystems
+     * This continuously updates subsystems based on the current state
      */
     private void applyStateGoals() {
-        // Set elevator position
+        // Set elevator position based on current state
         elevator.pos = currentState.elevatorLevel;
         
-        // Set pivot position
+        // Set pivot position based on current state
         pivotIntake.setPivotSetpoint(currentState.pivotPosition);
         
         // Intake wheels are controlled by commands, not continuous state
@@ -303,6 +303,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
      * SCORE L4: Score coral at Level 4
      */
     public Command scoreLevel4() {
+        System.out.println("=== SCORE L4 COMMAND TRIGGERED ===");
         return scoreAtLevel(RobotState.SCORING_L4_PREP, RobotState.SCORING_L4_EXECUTE, 0.2);
     }
     
@@ -340,21 +341,33 @@ public class SuperstructureSubsystem extends SubsystemBase {
         final GameState finalScoringState = scoringState;
         
         return Commands.sequence(
+            // Debug output
+            Commands.runOnce(() -> System.out.println("Starting scoring sequence: " + prepState.name() + " -> Level " + prepState.elevatorLevel)),
+            
             // Update master game state
             Commands.runOnce(() -> masterStateMachine.setGameState(finalScoringState)),
             
             // Prep: Move elevator and mechanisms to scoring position
-            Commands.runOnce(() -> requestState(prepState)),
+            Commands.runOnce(() -> {
+                System.out.println("Setting prep state: " + prepState.name());
+                requestState(prepState);
+            }),
             Commands.waitUntil(this::hasReachedStateGoals),
             
             // Execute: Launch coral
-            Commands.runOnce(() -> requestState(executeState)),
+            Commands.runOnce(() -> {
+                System.out.println("Executing score at level " + executeState.elevatorLevel);
+                requestState(executeState);
+            }),
             dumpRoller.dropCoral(launchSpeed).withTimeout(0.5),
             Commands.runOnce(() -> dumpRoller.setCoralLoaded(false)),
             dumpRoller.keepCoral(),
             
             // Return to idle
-            Commands.runOnce(() -> requestState(RobotState.IDLE)),
+            Commands.runOnce(() -> {
+                System.out.println("Returning to idle");
+                requestState(RobotState.IDLE);
+            }),
             Commands.runOnce(() -> masterStateMachine.setGameState(GameState.IDLE)),
             Commands.waitSeconds(0.5),
             Commands.waitUntil(this::hasReachedStateGoals) // Wait for elevator to return to home position

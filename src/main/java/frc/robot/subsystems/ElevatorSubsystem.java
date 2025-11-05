@@ -24,6 +24,9 @@
         // Represents a list of the number of rotations to get to each level
         public Double[] positions = {0.15, 3.15, 12.0, 23.25, 41.8}; // gotta test vals here tmr...
         public int pos = 0;
+        
+        // Track previous pos value to detect changes
+        private int lastPos = 0;
 
         // Initializes the motors and controller
         public ElevatorSubsystem() {
@@ -91,12 +94,21 @@
 
     @Override
     public void periodic() {
+        // Log when pos changes for debugging
+        if (pos != lastPos) {
+            System.out.println("Elevator pos changed: " + lastPos + " -> " + pos + " (target: " + positions[pos] + " rotations)");
+            lastPos = pos;
+        }
+        
         // When the state machine updates 'pos', the elevator automatically moves to that level
+        // This runs every robot loop (~20ms) to continuously update the elevator position
         frontElevator.setControl(motionMagic.withPosition(positions[pos]));
+        
         // Displays telemetry about the elevators position and power
         SmartDashboard.putNumber("elevator position", frontElevator.getPosition().getValueAsDouble());
         SmartDashboard.putNumber("elevator applied", frontElevator.getMotorVoltage().getValueAsDouble());
         SmartDashboard.putString("Elevator Level", "L" + pos);
+        SmartDashboard.putNumber("Elevator Target", positions[pos]);
     }        // Moves the elevator to a set position with a threshold of 0.5
         public Command setPositionwithThreshold(int targetPos){
             return setPosition(targetPos).until(() -> Math.abs(positions[targetPos] - getPosition()) < 0.5);
