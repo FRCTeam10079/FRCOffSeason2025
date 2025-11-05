@@ -239,9 +239,9 @@ public class PivotIntakeSubsystem extends SubsystemBase {
         return Commands.run(() -> setIntakeSpeed(PivotIntakeConstants.INTAKE_REVERSE_SPEED), this);
     }
     
-    // Command to stop intake wheels
+    // Command to stop intake wheels - ONE-TIME COMMAND, not continuous
     public Command stopWheels() {
-        return Commands.run(() -> setIntakeSpeed(0), this);
+        return Commands.runOnce(() -> setIntakeSpeed(0), this);
     }
     
     /**

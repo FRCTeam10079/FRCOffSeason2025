@@ -130,15 +130,15 @@ public class SuperstructureSubsystem extends SubsystemBase {
     private boolean hasReachedStateGoals() {
         RobotState state = currentState;
         
-        // Check elevator position
+        // Check elevator position - 0.5 rotation tolerance
         boolean elevatorAtGoal = Math.abs(
             elevator.getPosition() - elevator.positions[state.elevatorLevel]
         ) < 0.5;
         
-        // Check pivot position
+        // Check pivot position - use the constant defined tolerance (0.09)
         boolean pivotAtGoal = Math.abs(
             pivotIntake.getPivotPosition() - state.pivotPosition
-        ) < 0.02;
+        ) < Constants.PivotIntakeConstants.PIVOT_TOLERANCE;
         
         boolean atGoal = elevatorAtGoal && pivotAtGoal;
         
@@ -208,14 +208,17 @@ public class SuperstructureSubsystem extends SubsystemBase {
     public Command collectCoralFromGround() {
         return Commands.sequence(
             // Update master game state
-            Commands.runOnce(() -> masterStateMachine.setGameState(GameState.COLLECTING_GROUND)),
+            Commands.runOnce(() -> {
+                masterStateMachine.setGameState(GameState.COLLECTING_GROUND);
+                System.out.println("=== INTAKE SEQUENCE STARTED ===");
+            }),
             
             // State 1: Deploy intake
             Commands.runOnce(() -> {
                 System.out.println("=== INTAKE: Deploying pivot to ground ===");
                 requestState(RobotState.GROUND_INTAKE_DEPLOY);
             }),
-            Commands.waitUntil(this::hasReachedStateGoals),
+            Commands.waitUntil(this::hasReachedStateGoals).withTimeout(3.0),
             Commands.runOnce(() -> System.out.println("Pivot deployed - starting collection")),
             
             // State 2: Run wheels and collect
@@ -223,20 +226,25 @@ public class SuperstructureSubsystem extends SubsystemBase {
                 System.out.println("=== INTAKE: Starting collection wheels ===");
                 requestState(RobotState.GROUND_INTAKE_COLLECTING);
             }),
+            
+            // Run intake until coral detected OR timeout
             pivotIntake.intakeWheels()
                 .until(pivotIntake::isCoralDetected)
                 .withTimeout(10.0),
             
-            Commands.runOnce(() -> System.out.println("Coral detected! Running intake for 0.5s more...")),
+            Commands.runOnce(() -> System.out.println("Coral detected or timeout! Running intake for 0.5s more...")),
             
             // Keep running intake for 0.5s after detection to fully pull coral in
             pivotIntake.intakeWheels().withTimeout(0.5),
-            pivotIntake.stopWheels(),
+            
+            // Stop wheels IMMEDIATELY with runOnce
             Commands.runOnce(() -> {
+                pivotIntake.setIntakeSpeed(0);
                 pivotIntake.setHasCoralInIntake(true);
                 System.out.println("Intake wheels stopped - coral secured");
             }),
-            Commands.waitSeconds(0.125),
+            
+            Commands.waitSeconds(0.2), // Brief pause before moving
             
             // State 3: Stow with coral
             Commands.runOnce(() -> {
@@ -245,11 +253,17 @@ public class SuperstructureSubsystem extends SubsystemBase {
                 System.out.println("Current position: " + pivotIntake.getPivotPosition());
                 requestState(RobotState.GROUND_INTAKE_STOWING);
             }),
-            Commands.waitUntil(this::hasReachedStateGoals).withTimeout(5.0), // Add timeout to prevent infinite wait
+            
+            // Wait for pivot to stow with timeout
+            Commands.waitUntil(this::hasReachedStateGoals).withTimeout(5.0),
+            
             Commands.runOnce(() -> System.out.println("Pivot stowed successfully!")),
             
             // Update game state - coral secured in intake
-            Commands.runOnce(() -> masterStateMachine.setGameState(GameState.CORAL_SECURED))
+            Commands.runOnce(() -> {
+                masterStateMachine.setGameState(GameState.CORAL_SECURED);
+                System.out.println("=== INTAKE SEQUENCE COMPLETE ===");
+            })
         );
     }
     
@@ -268,23 +282,38 @@ public class SuperstructureSubsystem extends SubsystemBase {
     
     /**
      * TRANSFER: Move coral from intake to dump roller
+     * Starts dump roller spinning BEFORE moving pivot to transfer position
      */
     public Command transferCoralToDump() {
         return Commands.sequence(
             // Update master game state
-            Commands.runOnce(() -> masterStateMachine.setGameState(GameState.TRANSFERRING)),
+            Commands.runOnce(() -> {
+                masterStateMachine.setGameState(GameState.TRANSFERRING);
+                System.out.println("=== TRANSFER: Starting dump roller motor ===");
+            }),
             
-            // Start dump roller early so it's already spinning
-            Commands.runOnce(() -> dumpRoller.coralMotor.set(1.0)),
+            // Start dump roller FIRST so it's already spinning when pivot arrives
+            Commands.runOnce(() -> {
+                dumpRoller.coralMotor.set(1.0);
+                System.out.println("Dump roller motor set to 1.0");
+            }),
+            
+            // Small delay to let dump roller spin up
+            Commands.waitSeconds(0.1),
             
             // State: Move to transfer position
-            Commands.runOnce(() -> requestState(RobotState.TRANSFERRING_TO_DUMP)),
-            Commands.waitUntil(this::hasReachedStateGoals),
+            Commands.runOnce(() -> {
+                System.out.println("=== TRANSFER: Moving pivot to transfer position ===");
+                requestState(RobotState.TRANSFERRING_TO_DUMP);
+            }),
+            Commands.waitUntil(this::hasReachedStateGoals).withTimeout(3.0),
+            Commands.runOnce(() -> System.out.println("Pivot at transfer position")),
             
             // Wait 0.25s at transfer position before starting transfer
             Commands.waitSeconds(0.25),
             
             // Transfer coral - RACE ends when FIRST command finishes
+            Commands.runOnce(() -> System.out.println("=== TRANSFER: Starting coral transfer ===")),
             Commands.race(
                 // Dump roller intake until current spike detected
                 new frc.robot.commands.IntakeCoral(dumpRoller),
@@ -293,12 +322,18 @@ public class SuperstructureSubsystem extends SubsystemBase {
                 pivotIntake.reverseIntakeWheels().withTimeout(3.0)
             ),
             
+            Commands.runOnce(() -> System.out.println("Transfer complete - stopping motors")),
+            
             // Stop motors and update states
             pivotIntake.stopWheels(),
-            dumpRoller.keepCoral(),
+            Commands.runOnce(() -> dumpRoller.coralMotor.set(0)),
+            Commands.waitSeconds(0.1),
+            
+            // Update coral tracking states
             Commands.runOnce(() -> {
                 pivotIntake.setHasCoralInIntake(false);
                 dumpRoller.setCoralLoaded(true);
+                System.out.println("Coral transferred to dump roller");
             }),
             
             // State: Coral loaded and ready
@@ -359,6 +394,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
     /**
      * Generic scoring sequence helper
      * Updates master game state during scoring
+     * Ensures dump roller shoots coral at all levels
      */
     private Command scoreAtLevel(RobotState prepState, RobotState executeState, double launchSpeed) {
         // Determine game state based on level
@@ -381,16 +417,28 @@ public class SuperstructureSubsystem extends SubsystemBase {
                 System.out.println("Setting prep state: " + prepState.name());
                 requestState(prepState);
             }),
-            Commands.waitUntil(this::hasReachedStateGoals),
+            Commands.waitUntil(this::hasReachedStateGoals).withTimeout(5.0), // Add timeout
+            Commands.runOnce(() -> System.out.println("Mechanisms at scoring position")),
             
             // Execute: Launch coral
             Commands.runOnce(() -> {
-                System.out.println("Executing score at level " + executeState.elevatorLevel);
+                System.out.println("Executing score at level " + executeState.elevatorLevel + " with speed " + launchSpeed);
                 requestState(executeState);
             }),
-            dumpRoller.dropCoral(launchSpeed).withTimeout(0.5),
-            Commands.runOnce(() -> dumpRoller.setCoralLoaded(false)),
-            dumpRoller.keepCoral(),
+            
+            // Run dump roller to shoot coral
+            Commands.runOnce(() -> {
+                System.out.println("Starting dump roller at speed: " + launchSpeed);
+                dumpRoller.coralMotor.set(launchSpeed);
+            }),
+            Commands.waitSeconds(0.5), // Wait for coral to shoot
+            
+            // Stop dump roller
+            Commands.runOnce(() -> {
+                System.out.println("Stopping dump roller");
+                dumpRoller.coralMotor.set(0);
+                dumpRoller.setCoralLoaded(false);
+            }),
             
             // Return to idle
             Commands.runOnce(() -> {
@@ -399,7 +447,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
             }),
             Commands.runOnce(() -> masterStateMachine.setGameState(GameState.IDLE)),
             Commands.waitSeconds(0.5),
-            Commands.waitUntil(this::hasReachedStateGoals) // Wait for elevator to return to home position
+            Commands.waitUntil(this::hasReachedStateGoals).withTimeout(5.0) // Wait for elevator to return to home position
         );
     }
     
