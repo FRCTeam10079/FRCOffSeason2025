@@ -170,10 +170,11 @@ public class RobotContainer {
         // Overdrive button for speed
         joystick.b().whileTrue(increaseSpeed()).onFalse(decreaseSpeed()); 
 
-        joystick.rightTrigger().onTrue(SmartScore()); // Smart scoring based on elevator level
+        // Smart scoring based on elevator level - triggers when right trigger pressed past threshold
+        joystick.rightTrigger(0.5).onTrue(SmartScore());
 
-        // Level 1
-        joystick.leftTrigger().onTrue(superstructure.scoreLevel1());
+        // Level 1 - triggers when left trigger pressed past threshold
+        joystick.leftTrigger(0.5).onTrue(superstructure.scoreLevel1());
 
         /////////////////////////////
         // OPERATOR CONTROL - STATE MACHINE
@@ -218,15 +219,32 @@ public class RobotContainer {
 
     /**
      * Smart Score - Uses state machine to score at current elevator level
+     * Scores at the current elevator position when right trigger is pressed
      */
     private Command SmartScore() {
         return Commands.either(
-            superstructure.scoreLevel1(),
+            // If pos <= 1 (Level 0 or 1), score at Level 1
+            Commands.sequence(
+                Commands.runOnce(() -> System.out.println("=== SMART SCORE: Level 1 (pos=" + elevator.pos + ") ===")),
+                superstructure.scoreLevel1()
+            ),
             Commands.either(
-                superstructure.scoreLevel2(),
+                // If pos == 2, score at Level 2
+                Commands.sequence(
+                    Commands.runOnce(() -> System.out.println("=== SMART SCORE: Level 2 (pos=" + elevator.pos + ") ===")),
+                    superstructure.scoreLevel2()
+                ),
                 Commands.either(
-                    superstructure.scoreLevel3(),
-                    superstructure.scoreLevel4(),
+                    // If pos == 3, score at Level 3
+                    Commands.sequence(
+                        Commands.runOnce(() -> System.out.println("=== SMART SCORE: Level 3 (pos=" + elevator.pos + ") ===")),
+                        superstructure.scoreLevel3()
+                    ),
+                    // Otherwise (pos == 4), score at Level 4
+                    Commands.sequence(
+                        Commands.runOnce(() -> System.out.println("=== SMART SCORE: Level 4 (pos=" + elevator.pos + ") ===")),
+                        superstructure.scoreLevel4()
+                    ),
                     () -> elevator.pos == 3
                 ),
                 () -> elevator.pos == 2
