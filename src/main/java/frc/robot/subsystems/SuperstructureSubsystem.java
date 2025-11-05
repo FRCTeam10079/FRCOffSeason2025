@@ -125,6 +125,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
     
     /**
      * Check if subsystems have reached state goals
+     * Used by commands to wait for mechanisms to reach position before continuing
      */
     private boolean hasReachedStateGoals() {
         RobotState state = currentState;
@@ -139,7 +140,17 @@ public class SuperstructureSubsystem extends SubsystemBase {
             pivotIntake.getPivotPosition() - state.pivotPosition
         ) < 0.02;
         
-        return elevatorAtGoal && pivotAtGoal;
+        boolean atGoal = elevatorAtGoal && pivotAtGoal;
+        
+        // Debug output when not at goal
+        if (!atGoal) {
+            SmartDashboard.putBoolean("Elevator At Goal", elevatorAtGoal);
+            SmartDashboard.putBoolean("Pivot At Goal", pivotAtGoal);
+            SmartDashboard.putNumber("Elevator Error", Math.abs(elevator.getPosition() - elevator.positions[state.elevatorLevel]));
+            SmartDashboard.putNumber("Pivot Error", Math.abs(pivotIntake.getPivotPosition() - state.pivotPosition));
+        }
+        
+        return atGoal;
     }
     
     @Override
@@ -200,24 +211,42 @@ public class SuperstructureSubsystem extends SubsystemBase {
             Commands.runOnce(() -> masterStateMachine.setGameState(GameState.COLLECTING_GROUND)),
             
             // State 1: Deploy intake
-            Commands.runOnce(() -> requestState(RobotState.GROUND_INTAKE_DEPLOY)),
+            Commands.runOnce(() -> {
+                System.out.println("=== INTAKE: Deploying pivot to ground ===");
+                requestState(RobotState.GROUND_INTAKE_DEPLOY);
+            }),
             Commands.waitUntil(this::hasReachedStateGoals),
+            Commands.runOnce(() -> System.out.println("Pivot deployed - starting collection")),
             
             // State 2: Run wheels and collect
-            Commands.runOnce(() -> requestState(RobotState.GROUND_INTAKE_COLLECTING)),
+            Commands.runOnce(() -> {
+                System.out.println("=== INTAKE: Starting collection wheels ===");
+                requestState(RobotState.GROUND_INTAKE_COLLECTING);
+            }),
             pivotIntake.intakeWheels()
                 .until(pivotIntake::isCoralDetected)
                 .withTimeout(10.0),
             
+            Commands.runOnce(() -> System.out.println("Coral detected! Running intake for 0.5s more...")),
+            
             // Keep running intake for 0.5s after detection to fully pull coral in
             pivotIntake.intakeWheels().withTimeout(0.5),
             pivotIntake.stopWheels(),
-            Commands.runOnce(() -> pivotIntake.setHasCoralInIntake(true)),
+            Commands.runOnce(() -> {
+                pivotIntake.setHasCoralInIntake(true);
+                System.out.println("Intake wheels stopped - coral secured");
+            }),
             Commands.waitSeconds(0.125),
             
             // State 3: Stow with coral
-            Commands.runOnce(() -> requestState(RobotState.GROUND_INTAKE_STOWING)),
-            Commands.waitUntil(this::hasReachedStateGoals),
+            Commands.runOnce(() -> {
+                System.out.println("=== INTAKE: Stowing pivot with coral ===");
+                System.out.println("Target position: " + RobotState.GROUND_INTAKE_STOWING.pivotPosition);
+                System.out.println("Current position: " + pivotIntake.getPivotPosition());
+                requestState(RobotState.GROUND_INTAKE_STOWING);
+            }),
+            Commands.waitUntil(this::hasReachedStateGoals).withTimeout(5.0), // Add timeout to prevent infinite wait
+            Commands.runOnce(() -> System.out.println("Pivot stowed successfully!")),
             
             // Update game state - coral secured in intake
             Commands.runOnce(() -> masterStateMachine.setGameState(GameState.CORAL_SECURED))

@@ -44,6 +44,9 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     // Current pivot setpoint
     private double currentSetpoint = PivotIntakeConstants.STOWED_POSITION;
     
+    // Track previous setpoint to detect changes
+    private double previousSetpoint = PivotIntakeConstants.STOWED_POSITION;
+    
     // Track if coral has been collected (set manually after collection)
     private boolean hasCoralInIntake = false;
     
@@ -158,7 +161,10 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     // Set the pivot position setpoint
     // State machine updates this, and periodic() handles the actual motor control
     public void setPivotSetpoint(double setpoint) {
-        currentSetpoint = setpoint;
+        if (setpoint != currentSetpoint) {
+            System.out.println("Pivot setpoint changed: " + currentSetpoint + " -> " + setpoint);
+            currentSetpoint = setpoint;
+        }
         // Motor control is handled in periodic() for state machine integration
     }
     
@@ -397,6 +403,12 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     
     @Override
     public void periodic() {
+        // Log setpoint changes for debugging
+        if (currentSetpoint != previousSetpoint) {
+            System.out.println("Pivot periodic: Moving to setpoint " + currentSetpoint + " (currently at " + getPivotPosition() + ")");
+            previousSetpoint = currentSetpoint;
+        }
+        
         // When the state machine updates currentSetpoint via setPivotSetpoint() continuously command the motor to maintain that position
         pivotMotor.setControl(motionMagic.withPosition(currentSetpoint));
         
