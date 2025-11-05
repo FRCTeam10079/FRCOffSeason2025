@@ -91,6 +91,8 @@
 
     @Override
     public void periodic() {
+        // When the state machine updates 'pos', the elevator automatically moves to that level
+        frontElevator.setControl(motionMagic.withPosition(positions[pos]));
         // Displays telemetry about the elevators position and power
         SmartDashboard.putNumber("elevator position", frontElevator.getPosition().getValueAsDouble());
         SmartDashboard.putNumber("elevator applied", frontElevator.getMotorVoltage().getValueAsDouble());

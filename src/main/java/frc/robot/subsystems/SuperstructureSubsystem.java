@@ -6,6 +6,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants;
 import frc.robot.RobotStateMachine;
 import frc.robot.RobotStateMachine.GameState;
 
@@ -34,36 +35,36 @@ public class SuperstructureSubsystem extends SubsystemBase {
      */
     public enum RobotState {
         // IDLE/HOME STATES
-        IDLE(0, 0.42, false, "Robot stowed and ready"),
+        IDLE(0, Constants.PivotIntakeConstants.STOWED_POSITION, false, "Robot stowed and ready"),
         
         // INTAKE STATES - Ground coral collection
-        GROUND_INTAKE_DEPLOY(0, 0.0, false, "Deploying intake to ground"),
-        GROUND_INTAKE_COLLECTING(0, 0.0, true, "Collecting coral from ground"),
-        GROUND_INTAKE_STOWING(0, 0.42, false, "Stowing intake with coral"),
+        GROUND_INTAKE_DEPLOY(0, Constants.PivotIntakeConstants.INTAKE_POSITION, false, "Deploying intake to ground"),
+        GROUND_INTAKE_COLLECTING(0, Constants.PivotIntakeConstants.INTAKE_POSITION, true, "Collecting coral from ground"),
+        GROUND_INTAKE_STOWING(0, Constants.PivotIntakeConstants.STOWED_POSITION_WITH_CORAL, false, "Stowing intake with coral"),
         
         // TRANSFER STATES - Moving coral from intake to dump roller
-        TRANSFERRING_TO_DUMP(0, 0.42, true, "Transferring coral to dump roller"),
-        CORAL_LOADED(0, 0.42, false, "Coral loaded in dump roller, ready to score"),
+        TRANSFERRING_TO_DUMP(0, Constants.PivotIntakeConstants.STOWED_POSITION_WITH_CORAL, true, "Transferring coral to dump roller"),
+        CORAL_LOADED(0, Constants.PivotIntakeConstants.STOWED_POSITION, false, "Coral loaded in dump roller, ready to score"),
         
         // SCORING STATES - Reef scoring at different levels
-        SCORING_L1_PREP(1, 0.42, false, "Preparing to score Level 1"),
-        SCORING_L1_EXECUTE(1, 0.42, false, "Scoring at Level 1"),
+        SCORING_L1_PREP(1, Constants.PivotIntakeConstants.STOWED_POSITION, false, "Preparing to score Level 1"),
+        SCORING_L1_EXECUTE(1, Constants.PivotIntakeConstants.STOWED_POSITION, false, "Scoring at Level 1"),
         
-        SCORING_L2_PREP(2, 0.42, false, "Preparing to score Level 2"),
-        SCORING_L2_EXECUTE(2, 0.42, false, "Scoring at Level 2"),
+        SCORING_L2_PREP(2, Constants.PivotIntakeConstants.STOWED_POSITION, false, "Preparing to score Level 2"),
+        SCORING_L2_EXECUTE(2, Constants.PivotIntakeConstants.STOWED_POSITION, false, "Scoring at Level 2"),
         
-        SCORING_L3_PREP(3, 0.42, false, "Preparing to score Level 3"),
-        SCORING_L3_EXECUTE(3, 0.42, false, "Scoring at Level 3"),
+        SCORING_L3_PREP(3, Constants.PivotIntakeConstants.STOWED_POSITION, false, "Preparing to score Level 3"),
+        SCORING_L3_EXECUTE(3, Constants.PivotIntakeConstants.STOWED_POSITION, false, "Scoring at Level 3"),
         
-        SCORING_L4_PREP(4, 0.42, false, "Preparing to score Level 4"),
-        SCORING_L4_EXECUTE(4, 0.42, false, "Scoring at Level 4"),
+        SCORING_L4_PREP(4, Constants.PivotIntakeConstants.STOWED_POSITION, false, "Preparing to score Level 4"),
+        SCORING_L4_EXECUTE(4, Constants.PivotIntakeConstants.STOWED_POSITION, false, "Scoring at Level 4"),
         
         // REEF SCORING STATE - For L1/L2 reef placement
-        REEF_SCORING_PREP(1, 0.35, false, "Preparing for reef scoring"),
-        REEF_SCORING_EXECUTE(1, 0.35, false, "Executing reef score"),
+        REEF_SCORING_PREP(1, Constants.PivotIntakeConstants.REEF_SCORING_POSITION, false, "Preparing for reef scoring"),
+        REEF_SCORING_EXECUTE(1, Constants.PivotIntakeConstants.REEF_SCORING_POSITION, false, "Executing reef score"),
         
         // MANUAL OVERRIDE
-        MANUAL(0, 0.42, false, "Manual control active");
+        MANUAL(0, Constants.PivotIntakeConstants.STOWED_POSITION, false, "Manual control active");
         
         // State properties - goals for each subsystem
         public final int elevatorLevel;
@@ -204,7 +205,12 @@ public class SuperstructureSubsystem extends SubsystemBase {
             
             // State 2: Run wheels and collect
             Commands.runOnce(() -> requestState(RobotState.GROUND_INTAKE_COLLECTING)),
-            pivotIntake.intakeWheels().until(pivotIntake::isCoralDetected),
+            pivotIntake.intakeWheels()
+                .until(pivotIntake::isCoralDetected)
+                .withTimeout(10.0),
+            
+            // Keep running intake for 0.5s after detection to fully pull coral in
+            pivotIntake.intakeWheels().withTimeout(0.5),
             pivotIntake.stopWheels(),
             Commands.runOnce(() -> pivotIntake.setHasCoralInIntake(true)),
             Commands.waitSeconds(0.125),
@@ -213,8 +219,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
             Commands.runOnce(() -> requestState(RobotState.GROUND_INTAKE_STOWING)),
             Commands.waitUntil(this::hasReachedStateGoals),
             
-            // Ready state
-            Commands.runOnce(() -> requestState(RobotState.IDLE)),
+            // Update game state - coral secured in intake
             Commands.runOnce(() -> masterStateMachine.setGameState(GameState.CORAL_SECURED))
         );
     }
@@ -240,14 +245,23 @@ public class SuperstructureSubsystem extends SubsystemBase {
             // Update master game state
             Commands.runOnce(() -> masterStateMachine.setGameState(GameState.TRANSFERRING)),
             
-            // State: Transferring
-            Commands.runOnce(() -> requestState(RobotState.TRANSFERRING_TO_DUMP)),
+            // Start dump roller early so it's already spinning
+            Commands.runOnce(() -> dumpRoller.coralMotor.set(1.0)),
             
-            // Run both motors until current spike
-            Commands.parallel(
-                pivotIntake.reverseIntakeWheels(),
-                dumpRoller.dropCoral(0.2)
-                    .until(() -> dumpRoller.coralMotor.getStatorCurrent().getValueAsDouble() > 35)
+            // State: Move to transfer position
+            Commands.runOnce(() -> requestState(RobotState.TRANSFERRING_TO_DUMP)),
+            Commands.waitUntil(this::hasReachedStateGoals),
+            
+            // Wait 0.25s at transfer position before starting transfer
+            Commands.waitSeconds(0.25),
+            
+            // Transfer coral - RACE ends when FIRST command finishes
+            Commands.race(
+                // Dump roller intake until current spike detected
+                new frc.robot.commands.IntakeCoral(dumpRoller),
+                
+                // Pivot wheels reverse (push coral out) with 3s safety timeout
+                pivotIntake.reverseIntakeWheels().withTimeout(3.0)
             ),
             
             // Stop motors and update states
@@ -343,7 +357,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
             Commands.runOnce(() -> requestState(RobotState.IDLE)),
             Commands.runOnce(() -> masterStateMachine.setGameState(GameState.IDLE)),
             Commands.waitSeconds(0.5),
-            elevator.setPosition(0)
+            Commands.waitUntil(this::hasReachedStateGoals) // Wait for elevator to return to home position
         );
     }
     

@@ -156,10 +156,10 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     }
     
     // Set the pivot position setpoint
+    // State machine updates this, and periodic() handles the actual motor control
     public void setPivotSetpoint(double setpoint) {
         currentSetpoint = setpoint;
-        // Command the motor to the target position
-        pivotMotor.setControl(motionMagic.withPosition(setpoint));
+        // Motor control is handled in periodic() for state machine integration
     }
     
     // Get current pivot position
@@ -397,7 +397,8 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     
     @Override
     public void periodic() {
-        // Motor is controlled via position control set in setPivotSetpoint()
+        // When the state machine updates currentSetpoint via setPivotSetpoint() continuously command the motor to maintain that position
+        pivotMotor.setControl(motionMagic.withPosition(currentSetpoint));
         
         // Update SmartDashboard
         SmartDashboard.putNumber("Pivot Position", getPivotPosition());

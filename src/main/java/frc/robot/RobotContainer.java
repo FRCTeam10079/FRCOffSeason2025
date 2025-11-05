@@ -113,7 +113,8 @@ public class RobotContainer {
 
         // DO NOT CHANGE.
         // Open Loop doesn't use feedback, Close Loop uses feedback
-        elevator.setDefaultCommand(elevator.setOpenLoop(() -> 0.2));
+        //Supposedly Elevator is controlled via periodic() based on pos variable so there is no default command needed cuz the state machine will handle the position logic automatically 
+        //elevator.setDefaultCommand(elevator.setOpenLoop(() -> 0.2));
         dumpRoller.setDefaultCommand(dumpRoller.keepCoral());
 
         // Configures the Bindings
