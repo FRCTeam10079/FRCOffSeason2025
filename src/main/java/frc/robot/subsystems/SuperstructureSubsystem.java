@@ -326,8 +326,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
             
             // Stop motors and update states
             pivotIntake.stopWheels(),
-            Commands.runOnce(() -> dumpRoller.coralMotor.set(0)),
-            Commands.waitSeconds(0.1),
+            dumpRoller.keepCoral(),
             
             // Update coral tracking states
             Commands.runOnce(() -> {
@@ -417,37 +416,27 @@ public class SuperstructureSubsystem extends SubsystemBase {
                 System.out.println("Setting prep state: " + prepState.name());
                 requestState(prepState);
             }),
-            Commands.waitUntil(this::hasReachedStateGoals).withTimeout(5.0), // Add timeout
-            Commands.runOnce(() -> System.out.println("Mechanisms at scoring position")),
-            
+            Commands.waitUntil(this::hasReachedStateGoals),
+
             // Execute: Launch coral
             Commands.runOnce(() -> {
                 System.out.println("Executing score at level " + executeState.elevatorLevel + " with speed " + launchSpeed);
                 requestState(executeState);
             }),
             
-            // Run dump roller to shoot coral
-            Commands.runOnce(() -> {
-                System.out.println("Starting dump roller at speed: " + launchSpeed);
-                dumpRoller.coralMotor.set(launchSpeed);
-            }),
-            Commands.waitSeconds(0.5), // Wait for coral to shoot
-            
-            // Stop dump roller
-            Commands.runOnce(() -> {
-                System.out.println("Stopping dump roller");
-                dumpRoller.coralMotor.set(0);
-                dumpRoller.setCoralLoaded(false);
-            }),
+            dumpRoller.dropCoral(launchSpeed).withTimeout(0.5),
+            Commands.runOnce(() -> dumpRoller.setCoralLoaded(false)),
+            dumpRoller.keepCoral(),
             
             // Return to idle
-            Commands.runOnce(() -> {
-                System.out.println("Returning to idle");
-                requestState(RobotState.IDLE);
-            }),
-            Commands.runOnce(() -> masterStateMachine.setGameState(GameState.IDLE)),
+            //Commands.runOnce(() -> {
+            //    System.out.println("Returning to idle");
+            //    requestState(RobotState.IDLE);
+            //}),
+            Commands.runOnce(() -> requestState(RobotState.IDLE)),
+            //returnToIdle(),
             Commands.waitSeconds(0.5),
-            Commands.waitUntil(this::hasReachedStateGoals).withTimeout(5.0) // Wait for elevator to return to home position
+            Commands.waitUntil(this::hasReachedStateGoals) // Wait for elevator to return to home position
         );
     }
     

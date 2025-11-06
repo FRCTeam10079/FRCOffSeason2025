@@ -31,7 +31,7 @@ public final class Constants {
         // The robot physically starts at stowed position
         // Encoder offset is applied in PivotIntakeSubsystem constructor
         public static final double STOWED_POSITION = 0.46;          // Home position
-        public static final double STOWED_POSITION_WITH_CORAL = 0.438; // Slightly above stowed for coral transfer
+        public static final double STOWED_POSITION_WITH_CORAL = 0.45; // Slightly above stowed for coral transfer
         public static final double INTAKE_POSITION = 0.0;         // Ground collection
         public static final double REEF_SCORING_POSITION = 0.25;   // Reef scoring position
         

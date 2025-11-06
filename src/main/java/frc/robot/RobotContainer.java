@@ -171,10 +171,10 @@ public class RobotContainer {
         joystick.b().whileTrue(increaseSpeed()).onFalse(decreaseSpeed()); 
 
         // Smart scoring based on elevator level - triggers when right trigger pressed past threshold
-        joystick.rightTrigger(0.5).onTrue(SmartScore());
+        joystick.rightTrigger().onTrue(SmartScore());
 
         // Level 1 - triggers when left trigger pressed past threshold
-        joystick.leftTrigger(0.5).onTrue(superstructure.scoreLevel1());
+        joystick.leftTrigger().onTrue(superstructure.scoreLevel1());
 
         /////////////////////////////
         // OPERATOR CONTROL - STATE MACHINE
