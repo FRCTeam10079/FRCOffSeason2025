@@ -294,6 +294,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
             
             // Start dump roller FIRST so it's already spinning when pivot arrives
             Commands.runOnce(() -> {
+                System.out.println("[DEBUG] Setting dumpRoller.coralMotor to 1.0");
                 dumpRoller.coralMotor.set(1.0);
                 System.out.println("Dump roller motor set to 1.0");
             }),
@@ -303,6 +304,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
             
             // State: Move to transfer position
             Commands.runOnce(() -> {
+                System.out.println("[DEBUG] Moving pivot to transfer position");
                 System.out.println("=== TRANSFER: Moving pivot to transfer position ===");
                 requestState(RobotState.TRANSFERRING_TO_DUMP);
             }),
@@ -367,7 +369,10 @@ public class SuperstructureSubsystem extends SubsystemBase {
      */
     public Command scoreLevel4() {
         System.out.println("=== SCORE L4 COMMAND TRIGGERED ===");
-        return scoreAtLevel(RobotState.SCORING_L4_PREP, RobotState.SCORING_L4_EXECUTE, 0.2);
+        return Commands.sequence(
+            Commands.runOnce(() -> System.out.println("[DEBUG] scoreLevel4() called, elevator pos: " + elevator.getPosition())),
+            scoreAtLevel(RobotState.SCORING_L4_PREP, RobotState.SCORING_L4_EXECUTE, 0.2)
+        );
     }
     
     /**
@@ -420,22 +425,27 @@ public class SuperstructureSubsystem extends SubsystemBase {
 
             // Execute: Launch coral
             Commands.runOnce(() -> {
-                System.out.println("Executing score at level " + executeState.elevatorLevel + " with speed " + launchSpeed);
+                System.out.println("[DEBUG] Executing score at level " + executeState.elevatorLevel + " with speed " + launchSpeed);
                 requestState(executeState);
             }),
-            
+            Commands.runOnce(() -> System.out.println("[DEBUG] Calling dumpRoller.dropCoral(" + launchSpeed + ")")),
             dumpRoller.dropCoral(launchSpeed).withTimeout(0.5),
-            Commands.runOnce(() -> dumpRoller.setCoralLoaded(false)),
+            Commands.runOnce(() -> {
+                System.out.println("[DEBUG] Setting dumpRoller coralLoaded to false");
+                dumpRoller.setCoralLoaded(false);
+            }),
+            Commands.runOnce(() -> System.out.println("[DEBUG] Calling dumpRoller.keepCoral()")),
             dumpRoller.keepCoral(),
-            
-            // Return to idle
-            //Commands.runOnce(() -> {
-            //    System.out.println("Returning to idle");
-            //    requestState(RobotState.IDLE);
-            //}),
-            Commands.runOnce(() -> requestState(RobotState.IDLE)),
-            //returnToIdle(),
+
+            // Wait 0.5s at scoring level before returning elevator to home
+            Commands.runOnce(() -> System.out.println("[DEBUG] Waiting 0.5s before returning elevator to home")),
             Commands.waitSeconds(0.5),
+
+            // Return to idle/home
+            Commands.runOnce(() -> {
+                System.out.println("[DEBUG] Returning elevator to home after scoring");
+                requestState(RobotState.IDLE);
+            }),
             Commands.waitUntil(this::hasReachedStateGoals) // Wait for elevator to return to home position
         );
     }
