@@ -145,8 +145,26 @@ public class AlignReef extends Command{
         Logger.recordOutput("Reefscape/AlignReef/TargetTagID", tID);
         Logger.recordOutput("Reefscape/AlignReef/AprilTagPose", targetPose);
 
-        // Gets the tag ID that is being targeted
-        tID = limelight.getTid();
+        // Gets the tag ID that is being targeted from Limelight
+        // Check if limelight has a valid tag before using its ID
+        int limelightTagID = limelight.getTid();
+        System.out.println("[DEBUG] Limelight detected tag ID: " + limelightTagID);
+        Logger.recordOutput("Reefscape/AlignReef/LimelightDetectedTagID", limelightTagID);
+        
+        // Only use limelight tag if it's valid (not 0) and exists in our map
+        if (limelightTagID != 0 && Constants.AprilTagMaps.aprilTagMap.containsKey(limelightTagID)) {
+            tID = limelightTagID;
+            System.out.println("[DEBUG] Using limelight tag ID: " + tID);
+        } else if (limelightTagID == 0) {
+            System.out.println("[DEBUG] Limelight has no valid tag (returned 0). Using closest tag from odometry: " + tID);
+            Logger.recordOutput("Reefscape/AlignReef/Warning", "Limelight returned tag ID 0, using odometry-based closest tag");
+        } else {
+            System.out.println("[DEBUG] Limelight tag ID " + limelightTagID + " not in AprilTag map. Using closest tag from odometry: " + tID);
+            Logger.recordOutput("Reefscape/AlignReef/Warning", "Limelight tag not in map, using odometry-based closest tag");
+        }
+        
+        // Use the determined tag ID (either from limelight or from closest calculation)
+        // tID is already set from either limelight or the closest tag calculation above
  
 /*         // Check if we initially see tag 10
         if (tID == 10) {

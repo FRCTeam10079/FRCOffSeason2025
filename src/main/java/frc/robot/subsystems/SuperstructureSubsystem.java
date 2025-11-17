@@ -192,7 +192,12 @@ public class SuperstructureSubsystem extends SubsystemBase {
      */
     private void applyStateGoals() {
         // Set elevator position based on current state
-        elevator.pos = currentState.elevatorLevel;
+        // This runs every periodic cycle to ensure elevator maintains position
+        int targetLevel = currentState.elevatorLevel;
+        if (elevator.pos != targetLevel) {
+            System.out.println("[DEBUG] applyStateGoals: Updating elevator.pos from " + elevator.pos + " to " + targetLevel);
+        }
+        elevator.pos = targetLevel;
         
         // Set pivot position based on current state
         pivotIntake.setPivotSetpoint(currentState.pivotPosition);
@@ -444,9 +449,14 @@ public class SuperstructureSubsystem extends SubsystemBase {
             // Return to idle/home
             Commands.runOnce(() -> {
                 System.out.println("[DEBUG] Returning elevator to home after scoring");
+                System.out.println("[DEBUG] Current elevator pos: " + elevator.pos + ", position: " + elevator.getPosition());
                 requestState(RobotState.IDLE);
+                System.out.println("[DEBUG] After requestState(IDLE), elevator.pos set to: " + elevator.pos);
             }),
-            Commands.waitUntil(this::hasReachedStateGoals) // Wait for elevator to return to home position
+            Commands.waitSeconds(0.1), // Brief delay to ensure state is applied
+            Commands.runOnce(() -> System.out.println("[DEBUG] Waiting for elevator to reach home. Current: " + elevator.getPosition() + ", Target: " + elevator.positions[0])),
+            Commands.waitUntil(this::hasReachedStateGoals).withTimeout(5.0), // Wait for elevator to return to home position with timeout
+            Commands.runOnce(() -> System.out.println("[DEBUG] Elevator reached home position: " + elevator.getPosition()))
         );
     }
     
