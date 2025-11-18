@@ -44,7 +44,7 @@ public class DumpRollerSubsystem extends SubsystemBase{
     
     // Holds the motor
     public Command keepCoral(){
-        return Commands.run(() -> coralMotor.set(0), this);
+        return Commands.runOnce(() -> coralMotor.set(0), this);
     }
 
     // Returns the sensor input, If a coral was found

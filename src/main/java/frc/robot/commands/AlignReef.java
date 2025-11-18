@@ -139,11 +139,14 @@ public class AlignReef extends Command{
         if (storedTagID == null) {
             storedTagID = tID;
             Logger.recordOutput("Reefscape/AlignReef/StoredTagID", storedTagID);
+            System.out.println("[DEBUG STORED TAG ID]" + storedTagID);
         }
 
         // Log the closest tag ID and pose
         Logger.recordOutput("Reefscape/AlignReef/TargetTagID", tID);
+        System.out.println("[DEBUG TAG ID]" + tID);
         Logger.recordOutput("Reefscape/AlignReef/AprilTagPose", targetPose);
+        System.out.println("[DEBUG TARGET POSE]" + targetPose);
 
         // Gets the tag ID that is being targeted from Limelight
         // Check if limelight has a valid tag before using its ID

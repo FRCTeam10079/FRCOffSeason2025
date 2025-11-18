@@ -46,7 +46,7 @@ public class LimelightSubsystem extends SubsystemBase {
     NetworkTableEntry tync = limelightTable.getEntry("tync");
 
     // Indicates if limelight is being used
-    private final boolean kUseLimelight = true;
+    private final boolean kUseLimelight = false;
     // RobotContainer
     private final RobotContainer m_robotContainer;
 
