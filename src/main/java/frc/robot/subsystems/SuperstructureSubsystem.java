@@ -278,8 +278,8 @@ public class SuperstructureSubsystem extends SubsystemBase {
     public Command collectAndTransfer() {
         return Commands.sequence(
             // Collect from ground
-            collectCoralFromGround(),
-            
+            //Commands.runOnce(() -> dumpRoller.coralMotor.set(1.0)),
+            collectCoralFromGround().andThen(Commands.runOnce(() -> dumpRoller.coralMotor.set(2.0)).withTimeout(1)), //This timeout is too long and this is way too jankky. Need to come up with a better method.
             // Transfer to dump
             transferCoralToDump()
         );
@@ -294,42 +294,39 @@ public class SuperstructureSubsystem extends SubsystemBase {
             // Update master game state
             Commands.runOnce(() -> {
                 masterStateMachine.setGameState(GameState.TRANSFERRING);
-                System.out.println("=== TRANSFER: Starting dump roller and moving to position ===");
+                System.out.println("=== TRANSFER: Starting dump roller motor ===");
             }),
             
-            // State: Move to transfer position while keeping dumproller spinning
+            // Start dump roller FIRST so it's already spinning when pivot arrives
             Commands.runOnce(() -> {
-                System.out.println("[DEBUG] Moving pivot to transfer position while dumproller spins");
+                System.out.println("[DEBUG] Setting dumpRoller.coralMotor to 1.0");
+                dumpRoller.coralMotor.set(1.0);
+                System.out.println("Dump roller motor set to 1.0");
+            }),
+            
+            // Small delay to let dump roller spin up
+            Commands.waitSeconds(0.1),
+            
+            // State: Move to transfer position
+            Commands.runOnce(() -> {
+                System.out.println("[DEBUG] Moving pivot to transfer position");
+                System.out.println("=== TRANSFER: Moving pivot to transfer position ===");
                 requestState(RobotState.TRANSFERRING_TO_DUMP);
             }),
-            
-            // Keep dumproller running while pivot moves to position
-            Commands.deadline(
-                Commands.waitUntil(this::hasReachedStateGoals).withTimeout(3.0),
-                dumpRoller.dropCoral(1.0) // Keeps dumproller spinning until pivot reaches position
-            ),
+            Commands.waitUntil(this::hasReachedStateGoals).withTimeout(3.0),
             Commands.runOnce(() -> System.out.println("Pivot at transfer position")),
             
             // Wait 0.25s at transfer position before starting transfer
-            Commands.deadline(
-                Commands.waitSeconds(0.25),
-                dumpRoller.dropCoral(1.0) // Keep spinning during wait
-            ),
+            Commands.waitSeconds(0.25),
             
-            // Transfer coral - dumproller keeps spinning until transfer completes
+            // Transfer coral - RACE ends when FIRST command finishes
             Commands.runOnce(() -> System.out.println("=== TRANSFER: Starting coral transfer ===")),
-            Commands.deadline(
-                // DEADLINE: Transfer sequence (race between current detection and timeout)
-                Commands.race(
-                    // Dump roller intake until current spike detected
-                    new frc.robot.commands.IntakeCoral(dumpRoller),
-                    
-                    // Pivot wheels reverse (push coral out) with 3s safety timeout
-                    pivotIntake.reverseIntakeWheels().withTimeout(3.0)
-                ),
+            Commands.race(
+                // Dump roller intake until current spike detected
+                new frc.robot.commands.IntakeCoral(dumpRoller),
                 
-                // Keep dump roller spinning throughout entire transfer (stops when deadline ends)
-                dumpRoller.dropCoral(1.0)
+                // Pivot wheels reverse (push coral out) with 3s safety timeout
+                pivotIntake.reverseIntakeWheels().withTimeout(3.0)
             ),
             
             Commands.runOnce(() -> System.out.println("Transfer complete - stopping motors")),
@@ -439,10 +436,10 @@ public class SuperstructureSubsystem extends SubsystemBase {
             Commands.runOnce(() -> System.out.println("[DEBUG] Calling dumpRoller.dropCoral(" + launchSpeed + ")")),
             dumpRoller.dropCoral(launchSpeed).withTimeout(0.5),
             Commands.runOnce(() -> {
-                System.out.println("[DEBUG] Scoring complete. Setting dumpRoller coralLoaded to false");
+                System.out.println("[DEBUG] Setting dumpRoller coralLoaded to false");
                 dumpRoller.setCoralLoaded(false);
             }),
-            Commands.runOnce(() -> System.out.println("[DEBUG] Calling dumpRoller.keepCoral() to stop motor")),
+            Commands.runOnce(() -> System.out.println("[DEBUG] Calling dumpRoller.keepCoral()")),
             dumpRoller.keepCoral(),
 
             // Wait 0.5s at scoring level before returning elevator to home
