@@ -44,6 +44,7 @@ public class DumpRollerSubsystem extends SubsystemBase{
     
     // Holds the motor
     public Command keepCoral(){
+        
         return Commands.runOnce(() -> coralMotor.set(0), this);
     }
 

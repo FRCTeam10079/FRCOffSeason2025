@@ -279,7 +279,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
         return Commands.sequence(
             // Collect from ground
             //Commands.runOnce(() -> dumpRoller.coralMotor.set(1.0)),
-            collectCoralFromGround().andThen(Commands.runOnce(() -> dumpRoller.coralMotor.set(2.0)).withTimeout(1)), //This timeout is too long and this is way too jankky. Need to come up with a better method.
+            collectCoralFromGround().andThen(Commands.runOnce(() -> dumpRoller.coralMotor.set(2.0)).withTimeout(.5)), //This timeout is too long and this is way too jankky. Need to come up with a better method.
             // Transfer to dump
             transferCoralToDump()
         );

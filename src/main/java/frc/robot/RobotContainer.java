@@ -34,7 +34,7 @@ import frc.robot.subsystems.SuperstructureSubsystem;
 
 public class RobotContainer {
     public double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.7; // kSpeedAt12Volts desired top speed
-    public double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
+    public double MaxAngularRate = RotationsPerSecond.of(0.8).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
 
     // MASTER STATE MACHINE - Controls the entire robot
     private final RobotStateMachine robotStateMachine = RobotStateMachine.getInstance();
