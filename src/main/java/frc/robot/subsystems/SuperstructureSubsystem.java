@@ -130,10 +130,11 @@ public class SuperstructureSubsystem extends SubsystemBase {
     private boolean hasReachedStateGoals() {
         RobotState state = currentState;
         
-        // Check elevator position - 0.5 rotation tolerance
+        // Check elevator position - L4 needs more tolerance due to height and settling time
+        double elevatorTolerance = (state.elevatorLevel == 4) ? 1.0 : 0.5;
         boolean elevatorAtGoal = Math.abs(
             elevator.getPosition() - elevator.positions[state.elevatorLevel]
-        ) < 0.5;
+        ) < elevatorTolerance;
         
         // Check pivot position - use the constant defined tolerance (0.09)
         boolean pivotAtGoal = Math.abs(
@@ -148,6 +149,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
             SmartDashboard.putBoolean("Pivot At Goal", pivotAtGoal);
             SmartDashboard.putNumber("Elevator Error", Math.abs(elevator.getPosition() - elevator.positions[state.elevatorLevel]));
             SmartDashboard.putNumber("Pivot Error", Math.abs(pivotIntake.getPivotPosition() - state.pivotPosition));
+            SmartDashboard.putNumber("Elevator Tolerance", elevatorTolerance);
         }
         
         return atGoal;
@@ -414,6 +416,10 @@ public class SuperstructureSubsystem extends SubsystemBase {
         
         final GameState finalScoringState = scoringState;
         
+        // Determine if this is L4 - needs special handling due to height
+        final boolean isL4 = prepState == RobotState.SCORING_L4_PREP;
+        final double prepTimeout = isL4 ? 3.0 : 2.0; // L4 needs more time to reach position
+        
         return Commands.sequence(
             // Debug output
             Commands.runOnce(() -> System.out.println("Starting scoring sequence: " + prepState.name() + " -> Level " + prepState.elevatorLevel)),
@@ -426,7 +432,18 @@ public class SuperstructureSubsystem extends SubsystemBase {
                 System.out.println("Setting prep state: " + prepState.name());
                 requestState(prepState);
             }),
-            Commands.waitUntil(this::hasReachedStateGoals),
+            // Wait for elevator with timeout - L4 may need more time
+            Commands.waitUntil(this::hasReachedStateGoals).withTimeout(prepTimeout),
+            // Debug: Check if we reached position or timed out
+            Commands.runOnce(() -> {
+                boolean atGoal = hasReachedStateGoals();
+                System.out.println("[DEBUG] After waitUntil for prep state - atGoal: " + atGoal);
+                System.out.println("[DEBUG] Elevator position: " + elevator.getPosition() + ", Target: " + elevator.positions[prepState.elevatorLevel]);
+                System.out.println("[DEBUG] Elevator error: " + Math.abs(elevator.getPosition() - elevator.positions[prepState.elevatorLevel]));
+                if (!atGoal && isL4) {
+                    System.out.println("[WARNING] L4 prep timed out but continuing with scoring anyway");
+                }
+            }),
 
             // Execute: Launch coral
             Commands.runOnce(() -> {
