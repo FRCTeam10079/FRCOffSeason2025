@@ -1,6 +1,7 @@
 package frc.robot.subsystems;
 
 import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -32,9 +33,14 @@ public class DumpRollerSubsystem extends SubsystemBase{
     // Tracks if coral is currently in the dump roller
     private boolean hasCoralLoaded = false;
 
+    // Track previous enabled state for safety - stop motors on disable
+    private boolean wasDisabled = true;
+
     // Initializes the motors and controller
     public DumpRollerSubsystem() {
         coralSensor = new DigitalInput(9); // On port 9 of the roboRIO
+
+
     }
 
     // Outtakes the coral
@@ -44,7 +50,6 @@ public class DumpRollerSubsystem extends SubsystemBase{
     
     // Holds the motor
     public Command keepCoral(){
-        
         return Commands.runOnce(() -> coralMotor.set(0), this);
     }
 
@@ -84,6 +89,17 @@ public class DumpRollerSubsystem extends SubsystemBase{
 
     @Override
     public void periodic() {
+        // SAFETY: Stop coral motor when robot is disabled
+        // This prevents the motor from spinning when re-enabled after disable
+        boolean isDisabled = DriverStation.isDisabled();
+        
+        if (isDisabled) {
+            // Force stop coral motor when disabled for safety
+            coralMotor.set(0);
+        }
+        
+        wasDisabled = isDisabled;
+
         SmartDashboard.putNumber("Coral Motor Current", coralMotor.getStatorCurrent().getValueAsDouble());
         SmartDashboard.putBoolean("Intake Sensor", coralSensor.get());
         SmartDashboard.putBoolean("Dump Roller Has Coral", hasCoralLoaded);

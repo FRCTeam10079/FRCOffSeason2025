@@ -107,7 +107,7 @@ public class RobotContainer {
         NamedCommands.registerCommand("Drop Coral", dumpRoller.dropCoral(0.2).withTimeout(0.5));
         NamedCommands.registerCommand("Keep Coral", dumpRoller.keepCoral());
         
-        // Build auto chooser with PathPlanner
+        // Build auto chooser with Pat,],hPlanner
         autoChooser = AutoBuilder.buildAutoChooser("Tests");
         SmartDashboard.putData("Auto Mode", autoChooser);
 
@@ -138,11 +138,11 @@ public class RobotContainer {
         );
 
         // A Button: Brake (locks wheels) - Updates state machine to track locked state
-        joystick.a().onTrue(Commands.runOnce(() -> 
-            robotStateMachine.setDrivetrainMode(RobotStateMachine.DrivetrainMode.LOCKED)))
-            .onFalse(Commands.runOnce(() -> 
-            robotStateMachine.setDrivetrainMode(RobotStateMachine.DrivetrainMode.FIELD_CENTRIC)))
-            .whileTrue(drivetrain.applyRequest(() -> brake));
+        //joystick.a().onTrue(Commands.runOnce(() -> 
+            //robotStateMachine.setDrivetrainMode(RobotStateMachine.DrivetrainMode.LOCKED)))
+            //.onFalse(Commands.runOnce(() -> 
+            //robotStateMachine.setDrivetrainMode(RobotStateMachine.DrivetrainMode.FIELD_CENTRIC)))
+            //.whileTrue(drivetrain.applyRequest(() -> brake));
 
         // State machine tracks vision alignment automatically via AlignReef
         joystick.rightBumper().whileTrue(new AlignReef(this, Constants.ReefPos.RIGHT));
@@ -163,31 +163,32 @@ public class RobotContainer {
         joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
         // Reset the field-centric heading on Y button press
-        joystick.y().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
+        joystick.leftTrigger().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
         drivetrain.registerTelemetry(logger::telemeterize);
 
         // Overdrive button for speed
-        joystick.b().whileTrue(increaseSpeed()).onFalse(decreaseSpeed()); 
+        //joystick.b().whileTrue(increaseSpeed()).onFalse(decreaseSpeed()); 
 
         // Smart scoring based on elevator level - triggers when right trigger pressed past threshold
-        joystick.rightTrigger().onTrue(SmartScore());
+        //joystick.rightTrigger().onTrue(SmartScore());
 
         // Level 1 - triggers when left trigger pressed past threshold
-        joystick.leftTrigger().onTrue(superstructure.scoreLevel1());
+        //joystick.leftTrigger().onTrue(superstructure.scoreLevel1());
 
         /////////////////////////////
         // OPERATOR CONTROL - STATE MACHINE
         /////////////////////////////
         
         // SCORING BUTTONS - Automatic state machine sequences
-        joystick2.b().onTrue(superstructure.scoreLevel1());
-        joystick2.a().onTrue(superstructure.scoreLevel2());
-        joystick2.x().onTrue(superstructure.scoreLevel3());
-        joystick2.y().onTrue(superstructure.scoreLevel4());
+        joystick.b().onTrue(superstructure.scoreLevel1());
+        joystick.a().onTrue(superstructure.scoreLevel2());
+        joystick.x().onTrue(superstructure.scoreLevel3());
+        joystick.y().onTrue(superstructure.scoreLevel4());
+        
 
         // INTAKE CONTROLS - Full auto sequence
-        joystick2.povUp().onTrue(superstructure.collectAndTransfer());
+        joystick.rightTrigger().onTrue(superstructure.collectAndTransfer());
 
         // MANUAL OVERRIDES - Direct subsystem control (bypasses state machine)
         // Enter manual mode, then control subsystems directly

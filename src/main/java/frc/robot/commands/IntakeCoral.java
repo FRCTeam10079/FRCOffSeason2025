@@ -22,11 +22,11 @@ public class IntakeCoral extends Command{
     double delayTime = 0.0;
 
     // Buffer to store the last few current readings
-    private static final int BUFFER_SIZE = 15;
+    private static final int BUFFER_SIZE = 60;
     private Queue<Double> currentBuffer = new LinkedList<>();
 
     // Current threshold value indicating if coral was intaked
-    private static final double HIGH_CURRENT_THRESHOLD = 35;
+    private static final double HIGH_CURRENT_THRESHOLD = 50;
     // Number of readings needed above threshold to confirm coral was intaked
     private static final int HIGH_CURRENT_COUNT = 50;
 
@@ -49,6 +49,8 @@ public class IntakeCoral extends Command{
         timer.restart();
         currentBuffer.clear();
         coralDetected = false;
+        dumpRoller.coralMotor.set(1);
+
         
     }
 
@@ -56,7 +58,7 @@ public class IntakeCoral extends Command{
     @Override
     public void execute(){
         // Runs the intake at high speed to quickly grab coral from pivot intake
-        dumpRoller.coralMotor.set(1);
+        System.out.println("Execute in INTAKE CORAL");
 
         // Gets current motor draw
         double current = dumpRoller.coralMotor.getStatorCurrent().getValueAsDouble();
@@ -74,7 +76,8 @@ public class IntakeCoral extends Command{
     // Called every 20ms to check if command is ended
     @Override
     public boolean isFinished(){
-        // Uses Sensor to detect Coral
+        //return false;
+        //Uses Sensor to detect Coral
         if (usingSensor){
             // If coral is first detected
             if (dumpRoller.getSensorInput() && !coralDetected){
@@ -91,21 +94,23 @@ public class IntakeCoral extends Command{
         }
         // Uses Current output to detect Coral
         else{
-            if(timer.get() > 0.67d) {
+            if(timer.get() > 2) {
+                System.out.println("Should've stopped because of time");
                 return true;
             }
-            // Only checks after 0.5 second (It spikes when starting)
-            if (timer.get() > 0.5) {
+            // Only checks after 0.15 second (It spikes when starting)
+            if (timer.get() > 0.15) {
                 // The count of high currents detected
-                int highCurrentCount = 0;
+                double currentAverage = 0;
+
                 // Counts number of values above threshold
                 for (double val : currentBuffer) {
-                    if (val > HIGH_CURRENT_THRESHOLD) {
-                        highCurrentCount++;
-                    }
+                    currentAverage += val;
                 }
-                // If there was a lot of high current values, then a coral was detected
-                if (highCurrentCount >= HIGH_CURRENT_COUNT) {
+
+                currentAverage /= currentBuffer.size();
+
+                if (currentAverage >= HIGH_CURRENT_THRESHOLD) {
                     System.out.println("Coral detected! Stopping motor.");
                     dumpRoller.setCoralLoaded(true); // Mark that coral is now loaded
                     return true;
@@ -119,7 +124,7 @@ public class IntakeCoral extends Command{
     @Override
     public void end(boolean interrupted){
         // Stops the Dump Roller
-        dumpRoller.coralMotor.set(0);
+        // dumpRoller.coralMotor.set(0);
         System.out.println("I have a Coral");
     }
 

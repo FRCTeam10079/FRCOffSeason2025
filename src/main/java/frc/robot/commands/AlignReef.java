@@ -36,9 +36,9 @@ public class AlignReef extends Command{
 
     /* ----- PIDs ----- */
     // 6,6,3
-    private PIDController pidX = new PIDController(7, 0.1, 0.01); //From kp 6
-    private PIDController pidY = new PIDController(7, 0.1, 0.01); //From kp 6
-    private PIDController pidRotate = new PIDController(3, 0, 0.3); 
+    private PIDController pidX = new PIDController(8, 0, 0.01); //From kp 6
+    private PIDController pidY = new PIDController(8, 0, 0.01); //From kp 6
+    private PIDController pidRotate = new PIDController(3, 0, 0.02); 
 
     // Creates a swerve request that specifies the robot to move FieldCentric
     private final SwerveRequest.FieldCentric driveRequest = new SwerveRequest.FieldCentric()
@@ -49,13 +49,13 @@ public class AlignReef extends Command{
     // The Desired position to go to
     private Pose2d targetPose;
     // The speed to move to position
-    private final double speed = 1.8; // From 1
+    private final double speed = 3.5; // From 1
     // The speed (rad/s) to rotate to position
-    private final double rotationSpeed = 0.75; //1.25
+    private final double rotationSpeed = 0.9; //1.25
     // The tolerance before stopping align (meters)
-    private final double positionTolerance = 0.025; // From 0.01
+    private final double positionTolerance = 0.02; // From 0.01
     // The tolerance for yaw alignment (radians)
-    private final double yawTolerance = Math.PI / 20; //From math.pi/32
+    private final double yawTolerance = Math.PI / 32; //From math.pi/32
     // Indicates if alignment uses PID Control
     private final boolean usingPID = true;
 
