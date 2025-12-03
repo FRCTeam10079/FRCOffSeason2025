@@ -17,6 +17,7 @@ import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.hardware.CANrange;
 
 import edu.wpi.first.units.Units.*;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -46,6 +47,9 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     
     // Track previous setpoint to detect changes
     private double previousSetpoint = PivotIntakeConstants.STOWED_POSITION;
+    
+    // Track previous enabled state for safety - stop motors on disable
+    private boolean wasDisabled = true;
     
     // Track if coral has been collected (set manually after collection)
     private boolean hasCoralInIntake = false;
@@ -403,6 +407,27 @@ public class PivotIntakeSubsystem extends SubsystemBase {
     
     @Override
     public void periodic() {
+        // SAFETY: Stop intake wheels when robot is disabled
+        // This prevents the intake from spinning when re-enabled after disable
+        boolean isDisabled = DriverStation.isDisabled();
+        
+        if (isDisabled) {
+            // Force stop intake wheels when disabled for safety
+            intakeWheelMotor.set(0);
+            
+            // Also reset pivot to stowed position on disable
+            if (currentSetpoint != PivotIntakeConstants.STOWED_POSITION) {
+                System.out.println("[SAFETY] PivotIntake disabled - resetting setpoint to STOWED");
+                currentSetpoint = PivotIntakeConstants.STOWED_POSITION;
+            }
+        } else if (wasDisabled) {
+            // Just became enabled - ensure we start from stowed
+            System.out.println("[SAFETY] PivotIntake enabled - starting from STOWED position");
+            currentSetpoint = PivotIntakeConstants.STOWED_POSITION;
+        }
+        
+        wasDisabled = isDisabled;
+        
         // Log setpoint changes for debugging
         if (currentSetpoint != previousSetpoint) {
             System.out.println("Pivot periodic: Moving to setpoint " + currentSetpoint + " (currently at " + getPivotPosition() + ")");

@@ -2,6 +2,7 @@ package frc.robot.subsystems;
 
 import org.littletonrobotics.junction.Logger;
 
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -28,6 +29,9 @@ public class SuperstructureSubsystem extends SubsystemBase {
     // Current state
     private RobotState currentState = RobotState.IDLE;
     private RobotState requestedState = RobotState.IDLE;
+    
+    // Track previous enabled state for safety reset on disable/enable transitions
+    private boolean wasDisabled = true;
     
     /**
      * Robot State Machine States
@@ -157,9 +161,41 @@ public class SuperstructureSubsystem extends SubsystemBase {
     
     @Override
     public void periodic() {
-        // State machine continuously applies state goals to subsystems
-        // This ensures the elevator stays at the correct level even if disturbed
-        applyStateGoals();
+        // SAFETY: Reset state to IDLE when robot is disabled or on enable transition
+        // This prevents the robot from resuming dangerous states (like intake running)
+        // when re-enabled after being disabled
+        boolean isDisabled = DriverStation.isDisabled();
+        
+        if (isDisabled) {
+            // Robot is disabled - force to IDLE state for safety
+            if (currentState != RobotState.IDLE) {
+                System.out.println("[SAFETY] Robot disabled - resetting state from " + currentState.name() + " to IDLE");
+                currentState = RobotState.IDLE;
+                requestedState = RobotState.IDLE;
+                
+                // Also update master state machine
+                masterStateMachine.setGameState(GameState.IDLE);
+            }
+            
+            // Stop all motors immediately when disabled
+            pivotIntake.setIntakeSpeed(0);
+        } else if (wasDisabled) {
+            // Just became enabled - ensure we start from a safe state
+            System.out.println("[SAFETY] Robot enabled - starting from IDLE state");
+            currentState = RobotState.IDLE;
+            requestedState = RobotState.IDLE;
+            masterStateMachine.setGameState(GameState.IDLE);
+        }
+        
+        // Track previous state for next cycle
+        wasDisabled = isDisabled;
+        
+        // Only apply state goals when enabled
+        if (!isDisabled) {
+            // State machine continuously applies state goals to subsystems
+            // This ensures the elevator stays at the correct level even if disturbed
+            applyStateGoals();
+        }
         
         // Update telemetry (AdvantageKit + SmartDashboard)
         updateTelemetry();
