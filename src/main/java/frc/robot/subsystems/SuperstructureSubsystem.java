@@ -3,6 +3,7 @@ package frc.robot.subsystems;
 import org.littletonrobotics.junction.Logger;
 
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -157,6 +158,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
             SmartDashboard.putNumber("Elevator Error",
                     Math.abs(elevator.getPosition() - elevator.positions[state.elevatorLevel]));
             SmartDashboard.putNumber("Pivot Error", Math.abs(pivotIntake.getPivotPosition() - state.pivotPosition));
+            //SmartDashboard.putNumber("Elevator Tolerance", elevatorTolerance);
         }
 
         return atGoal;

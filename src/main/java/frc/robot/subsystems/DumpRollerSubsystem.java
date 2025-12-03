@@ -99,7 +99,7 @@ public class DumpRollerSubsystem extends SubsystemBase{
         }
         
         wasDisabled = isDisabled;
-
+        
         SmartDashboard.putNumber("Coral Motor Current", coralMotor.getStatorCurrent().getValueAsDouble());
         SmartDashboard.putBoolean("Intake Sensor", coralSensor.get());
         SmartDashboard.putBoolean("Dump Roller Has Coral", hasCoralLoaded);
