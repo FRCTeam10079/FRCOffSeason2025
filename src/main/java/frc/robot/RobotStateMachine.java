@@ -4,8 +4,13 @@ import org.littletonrobotics.junction.Logger;
 
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.GenericHID.RumbleType;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * MASTER ROBOT STATE MACHINE
@@ -22,11 +27,72 @@ public class RobotStateMachine extends SubsystemBase {
     private DrivetrainMode driveMode = DrivetrainMode.FIELD_CENTRIC;
     private GameState gameState = GameState.IDLE;
     private AllianceColor alliance = AllianceColor.UNKNOWN;
+    private CoralState coralState = CoralState.NONE;  // Coral tracking
     
     // State tracking
     private double stateStartTime = 0;
+    private double matchStartTime = 0;
     private MatchState previousMatchState = MatchState.DISABLED;
     private GameState previousGameState = GameState.IDLE;
+    
+    // State history (circular buffer for last 20 states)
+    private static final int STATE_HISTORY_SIZE = 20;
+    private final List<StateHistoryEntry> stateHistory = new ArrayList<>();
+    
+    // Cycle counting for auto performance
+    private int coralsScoredAuto = 0;
+    private int coralsScoredTeleop = 0;
+    private int intakeCyclesCompleted = 0;
+    private int scoringCyclesCompleted = 0;
+    private double lastCycleTime = 0;
+    private double fastestCycleTime = Double.MAX_VALUE;
+    
+    // Driver feedback
+    private CommandXboxController driverController;
+    private CommandXboxController operatorController;
+    private double rumbleEndTime = 0;
+    
+    /**
+     * CORAL STATE - Where is the coral at?
+     * Separate from GameState to ensure reliable tracking
+     */
+    public enum CoralState {
+        NONE("No Coral", "Robot has no coral"),
+        IN_INTAKE("In Intake", "Coral secured in pivot intake"),
+        TRANSFERRING("Transferring", "Coral moving from intake to dump"),
+        IN_DUMP("In Dump Roller", "Coral loaded in dump, ready to score"),
+        SCORING("Scoring", "Actively ejecting coral");
+        
+        public final String name;
+        public final String description;
+        
+        CoralState(String name, String description) {
+            this.name = name;
+            this.description = description;
+        }
+    }
+    
+    /**
+     * State History Entry for debugging
+     */
+    private static class StateHistoryEntry {
+        public final double timestamp;
+        public final String stateType;
+        public final String fromState;
+        public final String toState;
+        
+        public StateHistoryEntry(double timestamp, String stateType, String fromState, String toState) {
+            this.timestamp = timestamp;
+            this.stateType = stateType;
+            this.fromState = fromState;
+            this.toState = toState;
+        }
+        
+        @Override
+        public String toString() {
+            return String.format("[%.2f] %s: %s -> %s", timestamp, stateType, fromState, toState);
+        }
+    }
     
     /**
      * MATCH STATE - Robot's lifecycle phase
@@ -112,10 +178,14 @@ public class RobotStateMachine extends SubsystemBase {
         ALGAE_MANAGEMENT("Algae Management", "Handling algae"),
         REPOSITIONING("Repositioning", "Moving to strategic position"),
         
-        // Endgame
-        APPROACHING_CLIMB("Approaching Climb", "Driving to climb position"),
-        PREPARING_CLIMB("Preparing to Climb", "Setting up for climb"),
+        // Endgame - added some new stuff even tho we dont have climb YET... :(
+        APPROACHING_CLIMB("Approaching Climb", "Driving to cage/barge for climb"),
+        PREPARING_CLIMB("Preparing to Climb", "Setting up mechanisms for climb"),
+        CLIMBING_SHALLOW("Climbing Shallow", "Climbing to shallow position (2pts)"),
+        CLIMBING_DEEP("Climbing Deep", "Climbing to deep position (6pts)"),
         CLIMBING("Climbing", "Actively climbing"),
+        CLIMBED_SHALLOW("Climbed Shallow", "Successfully on shallow bar"),
+        CLIMBED_DEEP("Climbed Deep", "Successfully on deep bar"),
         CLIMBED("Climbed", "Successfully on bar"),
         
         // Error/Recovery
@@ -148,8 +218,18 @@ public class RobotStateMachine extends SubsystemBase {
         }
         
         public boolean isEndgame() {
+            // Even though we don't have climbing yet, this is good practice/learning for next year/season :]
             return this == APPROACHING_CLIMB || this == PREPARING_CLIMB || 
-                   this == CLIMBING || this == CLIMBED;
+                   this == CLIMBING || this == CLIMBING_SHALLOW || this == CLIMBING_DEEP ||
+                   this == CLIMBED || this == CLIMBED_SHALLOW || this == CLIMBED_DEEP;
+        }
+        
+        public boolean isClimbed() {
+            return this == CLIMBED || this == CLIMBED_SHALLOW || this == CLIMBED_DEEP;
+        }
+        
+        public boolean isClimbing() {
+            return this == CLIMBING || this == CLIMBING_SHALLOW || this == CLIMBING_DEEP;
         }
     }
     
@@ -264,36 +344,32 @@ public class RobotStateMachine extends SubsystemBase {
     
     /**
      * Handle game state transitions
+     * Drivetrain mode is now decoupled from game state! :)
+     * This allows drivetrain alignment to run independently of manipulator operations.
+     * Only critical safety states (EMERGENCY_STOP) still affect drivetrain.
      */
     private void onGameStateChange() {
         switch (gameState) {
-            case ALIGNING_TO_SCORE:
-                setDrivetrainMode(DrivetrainMode.VISION_TRACKING);
-                break;
-                
-            case AUTO_NAVIGATING:
-                setDrivetrainMode(DrivetrainMode.PATH_FOLLOWING);
-                break;
-                
-            case CLIMBING:
-            case CLIMBED:
-                setDrivetrainMode(DrivetrainMode.LOCKED);
-                break;
-                
-            case MANUAL_OVERRIDE:
-                setDrivetrainMode(DrivetrainMode.ROBOT_CENTRIC);
-                break;
-                
+            // Only EMERGENCY_STOP should affect drivetrain
+            // This decouples alignment from intake/scoring operations
             case EMERGENCY_STOP:
                 setDrivetrainMode(DrivetrainMode.DISABLED);
                 break;
                 
+            case CLIMBING:
+            case CLIMBING_SHALLOW:
+            case CLIMBING_DEEP:
+            case CLIMBED:
+            case CLIMBED_SHALLOW:
+            case CLIMBED_DEEP:
+                // Climbing is a special case - lock wheels for safety
+                setDrivetrainMode(DrivetrainMode.LOCKED);
+                break;
+                
+            // All other game states do NOT change drivetrain mode
+            // This allows AlignReef to run while intake is collecting!
             default:
-                if (matchState == MatchState.TELEOP_RUNNING && 
-                    driveMode != DrivetrainMode.FIELD_CENTRIC &&
-                    driveMode != DrivetrainMode.SLOW_MODE) {
-                    setDrivetrainMode(DrivetrainMode.FIELD_CENTRIC);
-                }
+                // Do nothing - let drivetrain commands control their own mode
                 break;
         }
     }
@@ -378,6 +454,9 @@ public class RobotStateMachine extends SubsystemBase {
         // Automatic endgame detection
         checkEndgameTransition();
         
+        // Update driver feedback
+        updateRumble();
+
         // Update telemetry
         updateTelemetry();
     }
@@ -406,6 +485,20 @@ public class RobotStateMachine extends SubsystemBase {
         Logger.recordOutput("StateMachine/Drivetrain/Mode", driveMode.name);
         Logger.recordOutput("StateMachine/Drivetrain/Description", driveMode.description);
         
+        // Coral State
+        Logger.recordOutput("StateMachine/Coral/State", coralState.name());
+        Logger.recordOutput("StateMachine/Coral/HasCoral", hasCoral());
+        Logger.recordOutput("StateMachine/Coral/ReadyToScore", isReadyToScore());
+        
+        // Cycle Statistics (auto performance tracking)
+        Logger.recordOutput("StateMachine/Cycles/CoralsScoredAuto", coralsScoredAuto);
+        Logger.recordOutput("StateMachine/Cycles/CoralsScoredTeleop", coralsScoredTeleop);
+        Logger.recordOutput("StateMachine/Cycles/TotalScored", getTotalCoralsScored());
+        Logger.recordOutput("StateMachine/Cycles/IntakeCycles", intakeCyclesCompleted);
+        Logger.recordOutput("StateMachine/Cycles/ScoringCycles", scoringCyclesCompleted);
+        Logger.recordOutput("StateMachine/Cycles/FastestCycleTime", getFastestCycleTime());
+        Logger.recordOutput("StateMachine/Cycles/MatchElapsedTime", getMatchElapsedTime());
+        
         // Alliance & Timing
         Logger.recordOutput("StateMachine/Alliance", alliance.description);
         Logger.recordOutput("StateMachine/TimeInState", getTimeInState());
@@ -430,6 +523,14 @@ public class RobotStateMachine extends SubsystemBase {
         SmartDashboard.putBoolean("Is Collecting", gameState.isCollecting());
         SmartDashboard.putBoolean("Is Scoring", gameState.isScoring());
         SmartDashboard.putBoolean("Is Navigating", gameState.isNavigating());
+        
+        // Coral SmartDashboard
+        SmartDashboard.putString("Coral State", coralState.name());
+        SmartDashboard.putBoolean("Has Coral", hasCoral());
+        SmartDashboard.putBoolean("Ready to Score", isReadyToScore());
+        SmartDashboard.putNumber("Corals Scored (Auto)", coralsScoredAuto);
+        SmartDashboard.putNumber("Corals Scored (Teleop)", coralsScoredTeleop);
+        SmartDashboard.putNumber("Total Corals Scored", getTotalCoralsScored());
     }
     
     // Getters
@@ -437,6 +538,7 @@ public class RobotStateMachine extends SubsystemBase {
     public GameState getGameState() { return gameState; }
     public DrivetrainMode getDrivetrainMode() { return driveMode; }
     public AllianceColor getAlliance() { return alliance; }
+    public CoralState getCoralState() { return coralState; }
     public boolean isEnabled() { return matchState.enabled; }
     public boolean isAutonomous() { return matchState.autonomous; }
     public boolean isTeleop() { return matchState == MatchState.TELEOP_RUNNING || matchState == MatchState.ENDGAME; }
@@ -445,4 +547,172 @@ public class RobotStateMachine extends SubsystemBase {
     public boolean isInState(MatchState state) { return matchState == state; }
     public boolean isInState(GameState state) { return gameState == state; }
     public boolean isInState(DrivetrainMode mode) { return driveMode == mode; }
+    public boolean isInState(CoralState state) { return coralState == state; }
+    
+    // Coral state management
+    public boolean hasCoral() { 
+        return coralState == CoralState.IN_INTAKE || 
+               coralState == CoralState.IN_DUMP || 
+               coralState == CoralState.TRANSFERRING; 
+    }
+    public boolean hasCoralInIntake() { return coralState == CoralState.IN_INTAKE; }
+    public boolean hasCoralInDump() { return coralState == CoralState.IN_DUMP; }
+    public boolean isReadyToScore() { return coralState == CoralState.IN_DUMP; }
+    
+    /**
+     * Set coral state with automatic driver feedback
+     */
+    public void setCoralState(CoralState newState) {
+        if (coralState != newState) {
+            CoralState previousState = coralState;
+            coralState = newState;
+            
+            // Log state change
+            addToStateHistory("Coral", previousState.name(), newState.name());
+            Logger.recordOutput("StateMachine/Coral/State", newState.name());
+            Logger.recordOutput("StateMachine/Coral/HasCoral", hasCoral());
+            
+            // Driver feedback on transitions
+            switch (newState) {
+                case IN_INTAKE:
+                    rumbleDriver(0.3, 0.2); // Short rumble - coral collected
+                    intakeCyclesCompleted++;
+                    break;
+                case IN_DUMP:
+                    rumbleDriver(0.5, 0.3); // Medium rumble - ready to score
+                    break;
+                case NONE:
+                    if (previousState == CoralState.SCORING) {
+                        rumbleDriver(1.0, 0.5); // Strong rumble - scored!
+                        if (isAutonomous()) {
+                            coralsScoredAuto++;
+                        } else {
+                            coralsScoredTeleop++;
+                        }
+                        scoringCyclesCompleted++;
+                        updateCycleTime();
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+    
+    /**
+     * Register controllers for driver feedback
+     */
+    public void registerControllers(CommandXboxController driver, CommandXboxController operator) {
+        this.driverController = driver;
+        this.operatorController = operator;
+    }
+    
+    /**
+     * Rumble driver controller for feedback
+     */
+    public void rumbleDriver(double intensity, double durationSeconds) {
+        if (driverController != null) {
+            driverController.getHID().setRumble(RumbleType.kBothRumble, intensity);
+            rumbleEndTime = edu.wpi.first.wpilibj.Timer.getFPGATimestamp() + durationSeconds;
+        }
+    }
+    
+    /**
+     * Rumble operator controller for feedback
+     */
+    public void rumbleOperator(double intensity, double durationSeconds) {
+        if (operatorController != null) {
+            operatorController.getHID().setRumble(RumbleType.kBothRumble, intensity);
+            rumbleEndTime = edu.wpi.first.wpilibj.Timer.getFPGATimestamp() + durationSeconds;
+        }
+    }
+    
+    /**
+     * Check and stop rumble when duration elapsed
+     */
+    private void updateRumble() {
+        if (rumbleEndTime > 0 && edu.wpi.first.wpilibj.Timer.getFPGATimestamp() >= rumbleEndTime) {
+            if (driverController != null) {
+                driverController.getHID().setRumble(RumbleType.kBothRumble, 0);
+            }
+            if (operatorController != null) {
+                operatorController.getHID().setRumble(RumbleType.kBothRumble, 0);
+            }
+            rumbleEndTime = 0;
+        }
+    }
+    
+    /**
+     * Add entry to state history
+     */
+    private void addToStateHistory(String stateType, String from, String to) {
+        StateHistoryEntry entry = new StateHistoryEntry(
+            edu.wpi.first.wpilibj.Timer.getFPGATimestamp(),
+            stateType, from, to
+        );
+        stateHistory.add(entry);
+        if (stateHistory.size() > STATE_HISTORY_SIZE) {
+            stateHistory.remove(0);
+        }
+    }
+    
+    /**
+     * Get state history for debugging
+     */
+    public List<StateHistoryEntry> getStateHistory() {
+        return new ArrayList<>(stateHistory);
+    }
+    
+    /**
+     * Print state history to console
+     */
+    public void printStateHistory() {
+        System.out.println("=== STATE HISTORY ===");
+        for (StateHistoryEntry entry : stateHistory) {
+            System.out.println(entry);
+        }
+        System.out.println("====================");
+    }
+    
+    // Cycle time tracking
+    private void updateCycleTime() {
+        double now = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+        if (lastCycleTime > 0) {
+            double cycleTime = now - lastCycleTime;
+            if (cycleTime < fastestCycleTime && cycleTime > 1.0) { // Ignore <1s cycles as they are most likely errors
+                fastestCycleTime = cycleTime;
+            }
+        }
+        lastCycleTime = now;
+    }
+    
+    // Cycle statistics getters
+    public int getCoralsScoredAuto() { return coralsScoredAuto; }
+    public int getCoralsScoredTeleop() { return coralsScoredTeleop; }
+    public int getTotalCoralsScored() { return coralsScoredAuto + coralsScoredTeleop; }
+    public int getIntakeCyclesCompleted() { return intakeCyclesCompleted; }
+    public int getScoringCyclesCompleted() { return scoringCyclesCompleted; }
+    public double getFastestCycleTime() { return fastestCycleTime == Double.MAX_VALUE ? 0 : fastestCycleTime; }
+    
+    /**
+     * Reset cycle counters (call at match start)
+     */
+    public void resetCycleCounters() {
+        coralsScoredAuto = 0;
+        coralsScoredTeleop = 0;
+        intakeCyclesCompleted = 0;
+        scoringCyclesCompleted = 0;
+        lastCycleTime = 0;
+        fastestCycleTime = Double.MAX_VALUE;
+        stateHistory.clear();
+        matchStartTime = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+    }
+    
+    /**
+     * Get match elapsed time
+     */
+    public double getMatchElapsedTime() {
+        if (matchStartTime == 0) return 0;
+        return edu.wpi.first.wpilibj.Timer.getFPGATimestamp() - matchStartTime;
+    }
 }

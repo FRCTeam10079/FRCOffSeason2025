@@ -100,9 +100,11 @@ public class AlignReef extends Command{
     
     @Override
     public void initialize(){
-        // STATE MACHINE INTEGRATION - Vision alignment tracking
+        // STATE MACHINE INTEGRATION - Only set drivetrain mode, NOT game state!
+        // This allows alignment to run independently of intake/scoring operations
+        // (e.g., driver can align while coral is still being transferred)
         stateMachine.setDrivetrainMode(RobotStateMachine.DrivetrainMode.VISION_TRACKING);
-        stateMachine.setGameState(RobotStateMachine.GameState.ALIGNING_TO_SCORE);
+        // I removed stateMachine.setGameState(RobotStateMachine.GameState.ALIGNING_TO_SCORE) because GameState is now managed independently by SuperstructureSubsystem
         
         // Starts timer
         timer.restart();
@@ -454,12 +456,11 @@ public class AlignReef extends Command{
     @Override
     public void end(boolean interrupted) {
         // STATE MACHINE INTEGRATION - Return to normal drive mode
+        // Only change drivetrain mode, NOT game state!
         stateMachine.setDrivetrainMode(RobotStateMachine.DrivetrainMode.FIELD_CENTRIC);
         
-        if (!interrupted) {
-            // Successfully aligned - update game state
-            stateMachine.setGameState(RobotStateMachine.GameState.CORAL_LOADED);
-        }
+        // I removed setting CORAL_LOADED state - this is managed by SuperstructureSubsystem
+        // The alignment command should not assume what state the manipulator is in
         
         // Ensures drivetrain stop
         drivetrain.setControl(stop);

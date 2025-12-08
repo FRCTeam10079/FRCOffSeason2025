@@ -12,6 +12,7 @@ import frc.robot.commands.*;
 import frc.robot.Constants;
 import frc.robot.RobotStateMachine;
 import frc.robot.RobotStateMachine.GameState;
+import frc.robot.RobotStateMachine.CoralState;
 
 /**
  * Superstructure state machine for the robot.
@@ -291,6 +292,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
                 Commands.runOnce(() -> {
                     pivotIntake.setIntakeSpeed(0);
                     pivotIntake.setHasCoralInIntake(true);
+                    masterStateMachine.setCoralState(CoralState.IN_INTAKE);
                     System.out.println("Intake wheels stopped - coral secured");
                 }),
 
@@ -393,7 +395,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
                 Commands.runOnce(() -> {
                     pivotIntake.setHasCoralInIntake(false);
                     dumpRoller.setCoralLoaded(true);
-
+                    masterStateMachine.setCoralState(CoralState.IN_DUMP);
                     System.out.println("Coral transferred to dump roller");
                 }),
 
@@ -441,13 +443,19 @@ public class SuperstructureSubsystem extends SubsystemBase {
     public Command scoreReef() {
         return Commands.sequence(
                 // Prep: Move to reef scoring position
-                Commands.runOnce(() -> requestState(RobotState.REEF_SCORING_PREP)),
+                Commands.runOnce(() -> {
+                    masterStateMachine.setCoralState(CoralState.SCORING);
+                    requestState(RobotState.REEF_SCORING_PREP);
+                }),
                 Commands.waitUntil(this::hasReachedStateGoals),
 
                 // Execute: Launch coral
                 Commands.runOnce(() -> requestState(RobotState.REEF_SCORING_EXECUTE)),
                 dumpRoller.dropCoral(0.2).withTimeout(0.5),
-                Commands.runOnce(() -> dumpRoller.setCoralLoaded(false)),
+                Commands.runOnce(() -> {
+                    dumpRoller.setCoralLoaded(false);
+                    masterStateMachine.setCoralState(CoralState.NONE); // Coral scored!
+                }),
                 dumpRoller.keepCoral(),
 
                 // Return to idle
@@ -482,6 +490,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
                 // Prep: Move elevator and mechanisms to scoring position
                 Commands.runOnce(() -> {
                     System.out.println("Setting prep state: " + prepState.name());
+                    masterStateMachine.setCoralState(CoralState.SCORING);
                     requestState(prepState);
                 }),
                 Commands.waitUntil(this::hasReachedStateGoals),
@@ -497,6 +506,7 @@ public class SuperstructureSubsystem extends SubsystemBase {
                 Commands.runOnce(() -> {
                     System.out.println("[DEBUG] Setting dumpRoller coralLoaded to false");
                     dumpRoller.setCoralLoaded(false);
+                    masterStateMachine.setCoralState(CoralState.NONE); // Coral is scored!
                 }),
                 Commands.runOnce(() -> System.out.println("[DEBUG] Calling dumpRoller.keepCoral()")),
                 dumpRoller.keepCoral(),
@@ -561,19 +571,13 @@ public class SuperstructureSubsystem extends SubsystemBase {
 
     /**
      * VISION ALIGN TO REEF: Limelight-based vision alignment
-     * 
+     * This does NOT modify GameState because alignment is a drivetrain operation, not a manipulator operation. This allows alignment to run in parallel with intake/transfer operations without state conflicts.
      * @param alignCommand The AlignReef command to execute
-     * @return Wrapped command with state machine integration
+     * @return The alignment command (AlignReef already manages DrivetrainMode)
      */
     public Command visionAlignReef(Command alignCommand) {
-        return Commands.sequence(
-                // Update master game state
-                Commands.runOnce(() -> masterStateMachine.setGameState(GameState.ALIGNING_TO_SCORE)),
-
-                // Execute vision alignment (AlignReef already sets VISION_TRACKING mode)
-                alignCommand,
-
-                // Return to idle game state after alignment
-                Commands.runOnce(() -> masterStateMachine.setGameState(GameState.IDLE)));
+        // Just return the align command - it manages DrivetrainMode internally
+        // GameState is not modified to allow parallel intake/transfer operations
+        return alignCommand;
     }
 }

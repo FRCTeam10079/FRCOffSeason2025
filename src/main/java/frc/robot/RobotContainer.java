@@ -107,9 +107,12 @@ public class RobotContainer {
         NamedCommands.registerCommand("Drop Coral", dumpRoller.dropCoral(0.2).withTimeout(0.5));
         NamedCommands.registerCommand("Keep Coral", dumpRoller.keepCoral());
         
-        // Build auto chooser with Pat,],hPlanner
+        // Build auto chooser with PathPlanner
         autoChooser = AutoBuilder.buildAutoChooser("Tests");
         SmartDashboard.putData("Auto Mode", autoChooser);
+
+        // Register driver and operator controllers for rumble feedback
+        robotStateMachine.registerControllers(joystick, joystick2);
 
         // DO NOT CHANGE.
         // Open Loop doesn't use feedback, Close Loop uses feedback
