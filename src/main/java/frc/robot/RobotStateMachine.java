@@ -29,6 +29,9 @@ public class RobotStateMachine extends SubsystemBase {
     private AllianceColor alliance = AllianceColor.UNKNOWN;
     private CoralState coralState = CoralState.NONE;  // Coral tracking
     
+    // Alignment tracking (for conditional auto-scoring)
+    private boolean isAlignedToTarget = false;  // True if robot has successfully auto-aligned to scoring target
+    
     // State tracking
     private double stateStartTime = 0;
     private double matchStartTime = 0;
@@ -319,17 +322,20 @@ public class RobotStateMachine extends SubsystemBase {
             case DISABLED:
                 setGameState(GameState.IDLE);
                 setDrivetrainMode(DrivetrainMode.DISABLED);
+                isAlignedToTarget = false;  // Reset alignment on disable
                 break;
                 
             case AUTO_INIT:
                 setGameState(GameState.AUTO_SCORING_PRELOAD);
                 setDrivetrainMode(DrivetrainMode.PATH_FOLLOWING);
+                isAlignedToTarget = false;  // Reset alignment on match start
                 updateAlliance();
                 break;
                 
             case TELEOP_INIT:
                 setGameState(GameState.IDLE);
                 setDrivetrainMode(DrivetrainMode.FIELD_CENTRIC);
+                isAlignedToTarget = false;  // Reset alignment on teleop start
                 break;
                 
             case ENDGAME:
@@ -558,6 +564,23 @@ public class RobotStateMachine extends SubsystemBase {
     public boolean hasCoralInIntake() { return coralState == CoralState.IN_INTAKE; }
     public boolean hasCoralInDump() { return coralState == CoralState.IN_DUMP; }
     public boolean isReadyToScore() { return coralState == CoralState.IN_DUMP; }
+    
+    /**
+     * Alignment tracking methods (for conditional auto-scoring)
+     */
+    public void setAlignedToTarget(boolean aligned) {
+        if (isAlignedToTarget != aligned) {
+            isAlignedToTarget = aligned;
+            Logger.recordOutput("StateMachine/AlignedToTarget", aligned);
+            if (aligned) {
+                rumbleDriver(0.4, 0.15); // Quick rumble - alignment successful
+            }
+        }
+    }
+    
+    public boolean isAlignedToTarget() {
+        return isAlignedToTarget;
+    }
     
     /**
      * Set coral state with automatic driver feedback

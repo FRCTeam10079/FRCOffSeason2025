@@ -183,11 +183,11 @@ public class RobotContainer {
         // OPERATOR CONTROL - STATE MACHINE
         /////////////////////////////
         
-        // SCORING BUTTONS - Automatic state machine sequences
-        joystick.b().onTrue(superstructure.scoreLevel1());
-        joystick.a().onTrue(superstructure.scoreLevel2());
-        joystick.x().onTrue(superstructure.scoreLevel3());
-        joystick.y().onTrue(superstructure.scoreLevel4());
+        // SCORING BUTTONS - Smart conditional scoring with alignment checks
+        joystick.b().onTrue(smartScoreL1());
+        joystick.a().onTrue(smartScoreL2());
+        joystick.x().onTrue(smartScoreL3());
+        joystick.y().onTrue(smartScoreL4());
         
 
         // INTAKE CONTROLS - Full auto sequence
@@ -219,6 +219,43 @@ public class RobotContainer {
         joystick3.povUp().onTrue(superstructure.collectCoralFromGround());   // Test: Just collect
         joystick3.povDown().onTrue(superstructure.transferCoralToDump());    // Test: Just transfer
         joystick3.start().onTrue(superstructure.returnToIdle());             // Test: Return to idle
+    }
+
+    // Smart Scoring Helpers
+
+    private Command smartScoreL1() {
+        return Commands.either(
+            // Already in prep -> Manual execute
+            superstructure.manualExecuteScore(0.1),
+            // Not in prep -> Start scoring sequence
+            superstructure.scoreLevel1(),
+            // Check if in prep state
+            () -> superstructure.getCurrentState() == SuperstructureSubsystem.RobotState.SCORING_L1_PREP
+        );
+    }
+
+    private Command smartScoreL2() {
+        return Commands.either(
+            superstructure.manualExecuteScore(0.2),
+            superstructure.scoreLevel2(),
+            () -> superstructure.getCurrentState() == SuperstructureSubsystem.RobotState.SCORING_L2_PREP
+        );
+    }
+
+    private Command smartScoreL3() {
+        return Commands.either(
+            superstructure.manualExecuteScore(0.2),
+            superstructure.scoreLevel3(),
+            () -> superstructure.getCurrentState() == SuperstructureSubsystem.RobotState.SCORING_L3_PREP
+        );
+    }
+
+    private Command smartScoreL4() {
+        return Commands.either(
+            superstructure.manualExecuteScore(0.2),
+            superstructure.scoreLevel4(),
+            () -> superstructure.getCurrentState() == SuperstructureSubsystem.RobotState.SCORING_L4_PREP
+        );
     }
 
     /**

@@ -463,6 +463,26 @@ public class SuperstructureSubsystem extends SubsystemBase {
     }
 
     /**
+     * Manual Eject Scoring - For when robot is in PREP state but not aligned
+     * This is the "second button press" that forces ejection without alignment
+     */
+    public Command manualExecuteScore(double launchSpeed) {
+        return Commands.sequence(
+                Commands.runOnce(() -> System.out.println("[MANUAL EXECUTE] Forcing score without alignment check")),
+                dumpRoller.dropCoral(launchSpeed).withTimeout(0.5),
+                Commands.runOnce(() -> {
+                    dumpRoller.setCoralLoaded(false);
+                    masterStateMachine.setCoralState(CoralState.NONE); // Coral scored!
+                    masterStateMachine.setAlignedToTarget(false); // Reset alignment flag (just in case)
+                }),
+                dumpRoller.keepCoral(),
+                Commands.waitSeconds(0.5),
+                Commands.runOnce(() -> requestState(RobotState.IDLE)),
+                Commands.waitUntil(this::hasReachedStateGoals)
+        );
+    }
+
+    /**
      * Generic scoring sequence helper
      * Updates master game state during scoring
      * Ensures dump roller shoots coral at all levels
@@ -495,19 +515,35 @@ public class SuperstructureSubsystem extends SubsystemBase {
                 }),
                 Commands.waitUntil(this::hasReachedStateGoals),
 
-                // Execute: Launch coral
-                Commands.runOnce(() -> {
-                    System.out.println("[DEBUG] Executing score at level " + executeState.elevatorLevel + " with speed "
-                            + launchSpeed);
-                    requestState(executeState);
-                }),
-                Commands.runOnce(() -> System.out.println("[DEBUG] Calling dumpRoller.dropCoral(" + launchSpeed + ")")),
-                dumpRoller.dropCoral(launchSpeed).withTimeout(0.5),
-                Commands.runOnce(() -> {
-                    System.out.println("[DEBUG] Setting dumpRoller coralLoaded to false");
-                    dumpRoller.setCoralLoaded(false);
-                    masterStateMachine.setCoralState(CoralState.NONE); // Coral is scored!
-                }),
+                // Conditional Auto Shooting Logic
+                // If robot has auto-aligned, automatically proceed to execute
+                // If not aligned, wait here (user must press scoring button again to force execute)
+                Commands.either(
+                    //Robot is aligned - auto proceed to execute
+                    Commands.sequence(
+                        Commands.runOnce(() -> System.out.println("[ALIGNED] Auto-executing score - robot was aligned to target")),
+                        // Execute: Launch coral
+                        Commands.runOnce(() -> {
+                            System.out.println("[DEBUG] Executing score at level " + executeState.elevatorLevel + " with speed "
+                                    + launchSpeed);
+                            requestState(executeState);
+                        }),
+                        Commands.runOnce(() -> System.out.println("[DEBUG] Calling dumpRoller.dropCoral(" + launchSpeed + ")")),
+                        dumpRoller.dropCoral(launchSpeed).withTimeout(0.5),
+                        Commands.runOnce(() -> {
+                            System.out.println("[DEBUG] Setting dumpRoller coralLoaded to false");
+                            dumpRoller.setCoralLoaded(false);
+                            masterStateMachine.setCoralState(CoralState.NONE); // Coral is scored!
+                        })
+                    ),
+                    // Robot is NOT aligned - stop here, waiting for manual confirm
+                    Commands.sequence(
+                        Commands.runOnce(() -> System.out.println("[NOT ALIGNED] Stopping at prep - user must press button again to shoot")),
+                        Commands.none() // End command - user must press scoring button again
+                    ),
+                    // Condition: Check if robot is aligned to target
+                    masterStateMachine::isAlignedToTarget
+                ),
                 Commands.runOnce(() -> System.out.println("[DEBUG] Calling dumpRoller.keepCoral()")),
                 dumpRoller.keepCoral(),
 

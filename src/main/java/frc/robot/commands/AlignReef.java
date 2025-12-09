@@ -106,6 +106,9 @@ public class AlignReef extends Command{
         stateMachine.setDrivetrainMode(RobotStateMachine.DrivetrainMode.VISION_TRACKING);
         // I removed stateMachine.setGameState(RobotStateMachine.GameState.ALIGNING_TO_SCORE) because GameState is now managed independently by SuperstructureSubsystem
         
+        // Reset alignment flag at start
+        stateMachine.setAlignedToTarget(false);
+        
         // Starts timer
         timer.restart();
         Logger.recordOutput("AlignReef/CommandStarted", true);
@@ -458,6 +461,15 @@ public class AlignReef extends Command{
         // STATE MACHINE INTEGRATION - Return to normal drive mode
         // Only change drivetrain mode, NOT game state!
         stateMachine.setDrivetrainMode(RobotStateMachine.DrivetrainMode.FIELD_CENTRIC);
+        
+        // Set alignment flag based on whether command completed successfully
+        if (!interrupted) {
+            stateMachine.setAlignedToTarget(true);
+            System.out.println("AlignReef completed - robot aligned to target");
+        } else {
+            stateMachine.setAlignedToTarget(false);
+            System.out.println("AlignReef interrupted - alignment not confirmed");
+        }
         
         // I removed setting CORAL_LOADED state - this is managed by SuperstructureSubsystem
         // The alignment command should not assume what state the manipulator is in
