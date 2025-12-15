@@ -52,6 +52,16 @@ public class SuperstructureSubsystem extends SubsystemBase {
         GROUND_INTAKE_STOWING(0, Constants.PivotIntakeConstants.STOWED_POSITION_WITH_CORAL, false,
                 "Stowing intake with coral"),
 
+        // INTAKE ASSIST STATES - Vision-guided coral collection
+        INTAKE_ASSIST_SEARCHING(0, Constants.PivotIntakeConstants.INTAKE_POSITION, false, 
+                "Searching for coral with vision"),
+        INTAKE_ASSIST_ALIGNING(0, Constants.PivotIntakeConstants.INTAKE_POSITION, false, 
+                "Aligning to detected coral"),
+        INTAKE_ASSIST_APPROACHING(0, Constants.PivotIntakeConstants.INTAKE_POSITION, false, 
+                "Driving toward detected coral"),
+        INTAKE_ASSIST_COLLECTING(0, Constants.PivotIntakeConstants.INTAKE_POSITION, true, 
+                "Collecting vision-detected coral"),
+
         // TRANSFER STATES - Moving coral from intake to dump roller
         TRANSFERRING_TO_DUMP(0, Constants.PivotIntakeConstants.STOWED_POSITION_WITH_CORAL, true,
                 "Transferring coral to dump roller"),

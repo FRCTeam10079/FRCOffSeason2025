@@ -161,6 +161,10 @@ public class RobotStateMachine extends SubsystemBase {
         
         // Teleop - Collecting
         SEEKING_CORAL("Seeking Coral", "Driving to coral location"),
+        INTAKE_ASSIST_SEARCHING("Intake Assist: Searching", "Using vision to find coral"),
+        INTAKE_ASSIST_ALIGNING("Intake Assist: Aligning", "Aligning to detected coral"),
+        INTAKE_ASSIST_APPROACHING("Intake Assist: Approaching", "Driving toward coral"),
+        INTAKE_ASSIST_COLLECTING("Intake Assist: Collecting", "Running intake on detected coral"),
         COLLECTING_GROUND("Collecting from Ground", "Ground intake active"),
         CORAL_SECURED("Coral Secured", "Coral in intake, ready to transfer"),
         TRANSFERRING("Transferring Coral", "Moving coral to dump roller"),

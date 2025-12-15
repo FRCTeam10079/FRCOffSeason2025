@@ -23,8 +23,10 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.Constants.PivotIntakeConstants;
 import frc.robot.Constants.ReefPos;
 import frc.robot.commands.AlignReef;
+import frc.robot.commands.IntakeAssist;
 import frc.robot.commands.IntakeCoral;
 import frc.robot.generated.TunerConstants;
+import frc.robot.subsystems.coraldetection.CoralDetectionSubsystem;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.DumpRollerSubsystem;
 import frc.robot.subsystems.ElevatorSubsystem;
@@ -60,6 +62,7 @@ public class RobotContainer {
     public final ElevatorSubsystem elevator = new ElevatorSubsystem();
     public final PivotIntakeSubsystem pivotSub = new PivotIntakeSubsystem();
     public final DumpRollerSubsystem dumpRoller = new DumpRollerSubsystem();
+    public final CoralDetectionSubsystem coralDetection = new CoralDetectionSubsystem();
     
     // STATE MACHINE - Coordinates all mechanisms
     public final frc.robot.subsystems.SuperstructureSubsystem superstructure = new frc.robot.subsystems.SuperstructureSubsystem(elevator, pivotSub, dumpRoller);
@@ -68,6 +71,9 @@ public class RobotContainer {
     private final SendableChooser<Command> autoChooser;
 
     public RobotContainer() {
+        // Set up coral detection with robot pose supplier for field-relative tracking
+        coralDetection.setRobotPoseSupplier(() -> drivetrain.getState().Pose);
+        
         // STATE MACHINE NAMED COMMANDS - Use these for autonomous!
         
         // GROUND INTAKE
@@ -98,6 +104,11 @@ public class RobotContainer {
         NamedCommands.registerCommand("Start Intake Wheels", pivotSub.intakeWheels());
         NamedCommands.registerCommand("Reverse Intake Wheels", pivotSub.reverseIntakeWheels());
         NamedCommands.registerCommand("Stop Intake Wheels", pivotSub.stopWheels());
+        
+        // CORAL DETECTION COMMANDS
+        NamedCommands.registerCommand("Wait For Coral", coralDetection.waitForCoral().withTimeout(3.0));
+        NamedCommands.registerCommand("Coral Assisted Pickup", new IntakeAssist(this));
+        NamedCommands.registerCommand("Clear Coral Tracking", coralDetection.clearTrackedCorals());
         NamedCommands.registerCommand("Raise L0", elevator.setPositionwithThreshold(0));
         NamedCommands.registerCommand("Raise L1", elevator.setPositionwithThreshold(1));
         NamedCommands.registerCommand("Raise L2", elevator.setPositionwithThreshold(2));
@@ -190,12 +201,34 @@ public class RobotContainer {
         joystick.y().onTrue(smartScoreL4());
         
 
-        // INTAKE CONTROLS - Full auto sequence
-        joystick.rightTrigger().onTrue(superstructure.collectAndTransfer());
+        // INTAKE CONTROLS - Vision-assisted intake
+        // Right Trigger: If coral is detected, use vision to drive to it; otherwise do normal ground intake
+        joystick.rightTrigger().onTrue(
+            Commands.either(
+                // Coral detected - use vision-assisted pickup
+                new IntakeAssist(this),
+                // No coral detected - use normal ground intake
+                superstructure.collectAndTransfer(),
+                // Condition: check if coral is detected and detection is enabled
+                () -> coralDetection.hasCoral() && coralDetection.isDetectionEnabled()
+            ).withName("SmartIntake")
+        );
 
         // MANUAL OVERRIDES - Direct subsystem control (bypasses state machine)
         // Enter manual mode, then control subsystems directly
         joystick2.povRight().onTrue(superstructure.enterManualMode());
+        
+        // Toggle coral detection on/off (operator can quickly disable if vision is causing issues)
+        joystick2.povLeft().onTrue(
+            Commands.runOnce(() -> {
+                boolean newState = !coralDetection.isDetectionEnabled();
+                coralDetection.setDetectionEnabled(newState);
+                System.out.println("Coral detection " + (newState ? "ENABLED" : "DISABLED"));
+            })
+        );
+        
+        // Force normal intake (bypass vision) - POV Up
+        joystick2.povUp().onTrue(superstructure.collectAndTransfer());
         
         // Manual dump roller control
         joystick2.leftBumper().whileTrue(dumpRoller.dropCoral(0.2))
@@ -219,6 +252,30 @@ public class RobotContainer {
         joystick3.povUp().onTrue(superstructure.collectCoralFromGround());   // Test: Just collect
         joystick3.povDown().onTrue(superstructure.transferCoralToDump());    // Test: Just transfer
         joystick3.start().onTrue(superstructure.returnToIdle());             // Test: Return to idle
+        
+        // Coral Detection Test Bindings
+        joystick3.a().onTrue(coralDetection.printDetectionInfo());           // Print coral detection info
+
+        // INTAKE ASSIST TEST - Y Button: Full coral detection pickup sequence
+        // Press Y to: Detect coral -> Align -> Drive to coral -> Collect -> Stow
+        joystick3.y().onTrue(new IntakeAssist(this));
+
+        // Left Bumper: Clear tracked corals and reset detection
+        joystick3.leftBumper().onTrue(
+            Commands.sequence(
+                coralDetection.clearTrackedCorals(),
+                Commands.runOnce(() -> System.out.println("Coral tracking cleared"))
+            )
+        );
+
+        // Right Bumper: Toggle detection on/off
+        joystick3.rightBumper().onTrue(
+            Commands.runOnce(() -> {
+                boolean newState = !coralDetection.isDetectionEnabled();
+                coralDetection.setDetectionEnabled(newState);
+                System.out.println("Coral detection " + (newState ? "ENABLED" : "DISABLED"));
+            })
+        );
     }
 
     // Smart Scoring Helpers
