@@ -92,7 +92,10 @@ public final class Constants {
         public static final double MIN_DETECTION_CONFIDENCE = 0.6; // Minimum neural net confidence (0-1)
         
         // Neural network class ID for coral
-        public static final int CORAL_CLASS_ID = 0;  // Class ID for coral in your trained model
+        // IMPORTANT: Class 0 is typically the background/invalid class in neural networks
+        // Set this to the actual coral class from your Limelight training (usually 1)
+        // If set to 0, any non-zero class will be accepted
+        public static final int CORAL_CLASS_ID = 0;  // 0 = accept any non-zero class, or set to specific class (e.g., 1)
         
         // TRACKING CONFIGURATION
         // Stale detection timeout - how long before we forget a coral

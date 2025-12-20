@@ -84,6 +84,9 @@ public class CoralDetectionIOLimelight implements CoralDetectionIO {
         // Set pipeline to neural network detection
         LimelightHelpers.setPipelineIndex(limelightName, 0);
         
+        // Enable LEDs for better coral detection
+        LimelightHelpers.setLEDMode_PipelineControl(limelightName);
+        
         // Sync camera pose to Limelight
         // This enables built-in 3D features and keeps config in sync
         // Parameters: forward, side, up (meters), roll, pitch, yaw (degrees)
@@ -96,6 +99,14 @@ public class CoralDetectionIOLimelight implements CoralDetectionIO {
             Math.toDegrees(cameraPitchRadians),            // Pitch (positive = down)
             Math.toDegrees(cameraYawRadians)               // Yaw (positive = left)
         );
+        
+        // Debug: Print configuration
+        System.out.println("===== CORAL DETECTION INITIALIZED =====");
+        System.out.println("Limelight Name: " + limelightName);
+        System.out.println("Camera Height:" + cameraHeightMeters + " m");
+        System.out.println("Camera Pitch:" + Math.toDegrees(cameraPitchRadians) + " deg");
+        System.out.println("Coral Class ID: " + config.coralClassId + " (0 = accept any non-zero)");
+        System.out.println("======================================");
     }
     
     /**
@@ -110,9 +121,18 @@ public class CoralDetectionIOLimelight implements CoralDetectionIO {
         double now = Timer.getFPGATimestamp();
         Pose2d robotPose = robotPoseSupplier.get();
         
+        // Ensure we're on the correct pipeline for neural detection
+        double currentPipeline = LimelightHelpers.getCurrentPipelineIndex(limelightName);
+        if (currentPipeline != 0) {
+            LimelightHelpers.setPipelineIndex(limelightName, 0);
+            SmartDashboard.putString("CoralIO/PipelineStatus", "Switching to pipeline 0");
+        } else {
+            SmartDashboard.putString("CoralIO/PipelineStatus", "On pipeline 0 (neural)");
+        }
+        
         // Check camera connection
         inputs.cameraConnected = LimelightHelpers.getTV(limelightName);
-        inputs.currentPipeline = (int) LimelightHelpers.getCurrentPipelineIndex(limelightName);
+        inputs.currentPipeline = (int) currentPipeline;
         
         // Get latency
         double captureLatency = LimelightHelpers.getLatency_Capture(limelightName);
@@ -132,17 +152,38 @@ public class CoralDetectionIOLimelight implements CoralDetectionIO {
         // Get raw detections from neural network
         RawDetection[] rawDetections = LimelightHelpers.getRawDetections(limelightName);
         
+        // Debug output
+        SmartDashboard.putBoolean("CoralIO/GotDetections", rawDetections != null && rawDetections.length > 0);
+        SmartDashboard.putNumber("CoralIO/DetectionArrayLength", rawDetections != null ? rawDetections.length : 0);
+        
         if (rawDetections == null || rawDetections.length == 0) {
             inputs.hasDetection = false;
+            SmartDashboard.putString("CoralIO/Status", "No detections from neural network");
             updateBestCoral(robotPose.getTranslation());
             return;
         }
         
+        SmartDashboard.putString("CoralIO/Status", "Processing " + rawDetections.length + " detections");
+        
+        // Debug: log raw detection count
+        SmartDashboard.putNumber("CoralIO/RawDetectionCount", rawDetections.length);
+        
         // Process each detection
         boolean foundCoral = false;
         for (RawDetection detection : rawDetections) {
-            // Filter by class ID
-            if (detection.classId != config.coralClassId) {
+            // Debug: log all detections
+            SmartDashboard.putNumber("CoralIO/LastClassID", detection.classId);
+            SmartDashboard.putNumber("CoralIO/LastConfidence", detection.ta);
+            
+            // IMPORTANT: Class ID 0 is typically the background/invalid class
+            // Skip class 0 detections (like FRC 1678 does)
+            if (detection.classId == 0) {
+                continue;
+            }
+            
+            // If you have a specific coral class ID configured, filter for it
+            // Otherwise, accept any non-zero class
+            if (config.coralClassId > 0 && detection.classId != config.coralClassId) {
                 continue;
             }
             
