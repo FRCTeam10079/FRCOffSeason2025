@@ -1,0 +1,68 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 7.075337837837838,
+        "y": 7.147635135135134
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 6.670748437512315,
+        "y": 6.66297801568963
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 5.49434659090909,
+        "y": 5.226576704545454
+      },
+      "prevControl": {
+        "x": 5.70139200468334,
+        "y": 5.485850562201142
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": "Rf4 Rs"
+    }
+  ],
+  "rotationTargets": [],
+  "constraintZones": [
+    {
+      "name": "Constraints Zone",
+      "minWaypointRelativePos": 0.9518547750591951,
+      "maxWaypointRelativePos": 0.5240726124704028,
+      "constraints": {
+        "maxVelocity": 3.0,
+        "maxAcceleration": 4.0,
+        "maxAngularVelocity": 540.0,
+        "maxAngularAcceleration": 720.0,
+        "nominalVoltage": 12.0,
+        "unlimited": false
+      }
+    }
+  ],
+  "pointTowardsZones": [],
+  "eventMarkers": [],
+  "globalConstraints": {
+    "maxVelocity": 4.5,
+    "maxAcceleration": 9.0,
+    "maxAngularVelocity": 540.0,
+    "maxAngularAcceleration": 720.0,
+    "nominalVoltage": 12.0,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": -124.99202019855888
+  },
+  "reversed": false,
+  "folder": null,
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": -124.82448915695684
+  },
+  "useDefaultConstraints": true
+}

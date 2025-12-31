@@ -1,0 +1,86 @@
+{
+  "version": "2025.0",
+  "waypoints": [
+    {
+      "anchor": {
+        "x": 6.072698863636364,
+        "y": 3.990099431818182
+      },
+      "prevControl": null,
+      "nextControl": {
+        "x": 6.309666384992513,
+        "y": 4.069763688686133
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 4.82625,
+        "y": 5.705213068181817
+      },
+      "prevControl": {
+        "x": 5.452631953194398,
+        "y": 5.698234357201727
+      },
+      "nextControl": {
+        "x": 4.051479550145328,
+        "y": 5.71384502032839
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 2.612556818181818,
+        "y": 4.927428977272727
+      },
+      "prevControl": {
+        "x": 3.5851975943596313,
+        "y": 4.960475046646479
+      },
+      "nextControl": {
+        "x": 2.1277115122532395,
+        "y": 4.9109560594106805
+      },
+      "isLocked": false,
+      "linkedName": null
+    },
+    {
+      "anchor": {
+        "x": 1.435909090909091,
+        "y": 5.705213068181817
+      },
+      "prevControl": {
+        "x": 1.4607027338013725,
+        "y": 5.22269787257819
+      },
+      "nextControl": null,
+      "isLocked": false,
+      "linkedName": "Rf4 to lolly1"
+    }
+  ],
+  "rotationTargets": [],
+  "constraintZones": [],
+  "pointTowardsZones": [],
+  "eventMarkers": [],
+  "globalConstraints": {
+    "maxVelocity": 4.5,
+    "maxAcceleration": 9.0,
+    "maxAngularVelocity": 540.0,
+    "maxAngularAcceleration": 720.0,
+    "nominalVoltage": 12.0,
+    "unlimited": false
+  },
+  "goalEndState": {
+    "velocity": 0,
+    "rotation": -29.577838681261376
+  },
+  "reversed": false,
+  "folder": null,
+  "idealStartingState": {
+    "velocity": 0,
+    "rotation": 177.66269414087625
+  },
+  "useDefaultConstraints": true
+}
